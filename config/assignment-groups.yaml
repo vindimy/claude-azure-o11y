@@ -1,0 +1,4 @@
+# assignment_group tag value -> team contact. Validated on startup: malformed emails fail the run.
+cloud-engineering:
+  email: cloud-engineering@example.com
+  teams_webhook: null

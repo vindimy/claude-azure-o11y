@@ -1,0 +1,5 @@
+# Overrides for mg-prod; merged over default.yaml. Prod never recommends below 2 vCPU.
+resource_types:
+  vm:
+    recommend:
+      min_vcpu: 2

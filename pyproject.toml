@@ -1,0 +1,35 @@
+[project]
+name = "azure-o11y-alerting"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=evaluate --cov=recommend --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["src/evaluate", "src/recommend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ASYNC240"]  # tests read local files inside async test functions on purpose
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+explicit_package_bases = true
+strict = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = ["azure.mgmt.resourcegraph.*", "azure.functions.*", "isodate.*", "azure.storage.blob.*"]
+ignore_missing_imports = true

@@ -1,0 +1,3 @@
+# Which app setting holds the Ops Teams webhook (a Key Vault reference). Per-MG overrides map MG id -> app setting name.
+ops_webhook_env: OPS_TEAMS_WEBHOOK_URL
+per_mg: {}

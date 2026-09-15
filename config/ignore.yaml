@@ -1,0 +1,8 @@
+# Resource-group ignore list. Python `re`, case-insensitive, full-match. Applied before any metrics call.
+resource_groups:
+  - '^rg-.*-dev(-.*)?$'
+  - '^rg-sandbox-.*'
+  - '^databricks-rg-.*'
+per_mg:
+  mg-nonprod:
+    - '.*-poc-.*'

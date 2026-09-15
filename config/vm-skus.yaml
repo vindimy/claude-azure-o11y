@@ -1,0 +1,27 @@
+# VM SKU catalog used by recommend/vm.py. Family ladders are ordered by vcpu; extend as SKUs appear in inventory.
+Standard_B1s:   {family: B, vcpu: 1, memory_gib: 1}
+Standard_B1ms:  {family: B, vcpu: 1, memory_gib: 2}
+Standard_B2s:   {family: B, vcpu: 2, memory_gib: 4}
+Standard_B2ms:  {family: B, vcpu: 2, memory_gib: 8}
+Standard_B4ms:  {family: B, vcpu: 4, memory_gib: 16}
+Standard_B8ms:  {family: B, vcpu: 8, memory_gib: 32}
+Standard_D2s_v3:  {family: Dsv3, vcpu: 2, memory_gib: 8}
+Standard_D4s_v3:  {family: Dsv3, vcpu: 4, memory_gib: 16}
+Standard_D8s_v3:  {family: Dsv3, vcpu: 8, memory_gib: 32}
+Standard_D16s_v3: {family: Dsv3, vcpu: 16, memory_gib: 64}
+Standard_D32s_v3: {family: Dsv3, vcpu: 32, memory_gib: 128}
+Standard_D2s_v5:  {family: Dsv5, vcpu: 2, memory_gib: 8}
+Standard_D4s_v5:  {family: Dsv5, vcpu: 4, memory_gib: 16}
+Standard_D8s_v5:  {family: Dsv5, vcpu: 8, memory_gib: 32}
+Standard_D16s_v5: {family: Dsv5, vcpu: 16, memory_gib: 64}
+Standard_D32s_v5: {family: Dsv5, vcpu: 32, memory_gib: 128}
+Standard_D64s_v5: {family: Dsv5, vcpu: 64, memory_gib: 256}
+Standard_E2s_v5:  {family: Esv5, vcpu: 2, memory_gib: 16}
+Standard_E4s_v5:  {family: Esv5, vcpu: 4, memory_gib: 32}
+Standard_E8s_v5:  {family: Esv5, vcpu: 8, memory_gib: 64}
+Standard_E16s_v5: {family: Esv5, vcpu: 16, memory_gib: 128}
+Standard_E32s_v5: {family: Esv5, vcpu: 32, memory_gib: 256}
+Standard_F2s_v2:  {family: Fsv2, vcpu: 2, memory_gib: 4}
+Standard_F4s_v2:  {family: Fsv2, vcpu: 4, memory_gib: 8}
+Standard_F8s_v2:  {family: Fsv2, vcpu: 8, memory_gib: 16}
+Standard_F16s_v2: {family: Fsv2, vcpu: 16, memory_gib: 32}

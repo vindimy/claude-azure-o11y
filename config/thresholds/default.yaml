@@ -1,0 +1,29 @@
+version: 1
+tags:
+  exclude: o11y-exclude
+  threshold_prefix: o11y-threshold-
+  owner: owner
+  assignment_group: assignment_group
+  car_id: car_id
+windows:
+  ops:
+    lookback_minutes: 60
+    granularity: PT1M
+    aggregation: average
+  finops:
+    lookback_days: 14
+    granularity: PT1H
+    aggregation: average
+    percentile: 95
+    min_coverage: 0.5
+suppression_window_hours: 4
+resource_types:
+  vm:
+    namespace: Microsoft.Compute/virtualMachines
+    metrics:
+      cpu:
+        metric_name: Percentage CPU
+        ops_hot: 90
+        finops_cold: 20
+    recommend:
+      min_vcpu: 1
