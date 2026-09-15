@@ -59,7 +59,8 @@ Timer trigger (cron per MG config)
 
 Do **not** call `Microsoft.Insights/metrics` per resource. Use the Azure Monitor
 **Metrics Batch API** (`https://{region}.metrics.monitor.azure.com/subscriptions/{subId}/metrics:getBatch`)
-via `azure-monitor-query` `MetricsClient.query_resources()`. Constraints Claude Code must respect:
+via `azure-monitor-querymetrics` `MetricsClient.query_resources()` (`azure-monitor-query` 2.x no longer
+ships the metrics client; see `docs/gotchas.md`). Constraints Claude Code must respect:
 
 - One call = one resource type + one region + one subscription, up to **50 resource IDs**.
 - Resource Graph provides inventory (type, region, SKU, tags) so batches can be built without
@@ -92,6 +93,7 @@ via `azure-monitor-query` `MetricsClient.query_resources()`. Constraints Claude 
   | Platform metrics via Metrics Batch API | `Monitoring Reader` | Management group |
   | VM guest metrics (memory, disk) via KQL | `Log Analytics Reader` | Central LAW resource only |
   | Write reports + suppression cache | `Storage Blob Data Contributor` | The `reports` and `suppression` containers only (container-scope, not account) |
+  | Functions host storage (`AzureWebJobsStorage` over identity; timer leases, host state) | `Storage Blob Data Owner` | The storage account (host requirement, not an app call; keys/connection strings are prohibited so identity is the only option) |
   | Read webhook URLs / SMTP creds | `Key Vault Secrets User` | The Key Vault (or per-secret if the bank's KV model allows) |
   | Pricing (Retail Prices API) | none — public, unauthenticated | — |
   | Pull the function image | `AcrPull` | The ACR resource only |
@@ -195,6 +197,10 @@ appears verbatim in the report. FinOps should never have to guess why a row exis
 ├── build/base-image.txt         # pinned approved base image reference
 ├── src/
 │   ├── function_app.py          # timer trigger entry point (Python v2 programming model)
+│   ├── bootstrap.py             # wires real / dry-run clients from Settings, runs the pipeline
+│   ├── pipeline.py              # orchestrator: inventory → batch metrics → evaluate → notify/report
+│   ├── models.py                # shared frozen dataclasses; ports.py holds the client Protocols
+│   ├── storage/                 # blob thin client (reports, suppression)
 │   ├── inventory/               # Resource Graph queries, one per resource type
 │   ├── metrics/                 # batch metrics client, LAW KQL client, VNET calculator
 │   ├── evaluate/                # threshold evaluation, suppression
@@ -206,6 +212,7 @@ appears verbatim in the report. FinOps should never have to guess why a row exis
 │   ├── thresholds/<mg-name>.yaml
 │   ├── routing.yaml             # Ops webhook secret name, per-MG overrides
 │   ├── assignment-groups.yaml   # assignment_group → team email / webhook
+│   ├── vm-skus.yaml             # VM SKU catalog (family, vCPU, memory) used for downsizing
 │   └── ignore.yaml              # regex RG ignore list
 ├── tests/                       # pytest; fixtures = recorded API responses, no live Azure
 ├── terraform/
@@ -229,11 +236,11 @@ appears verbatim in the report. FinOps should never have to guess why a row exis
 
 ## Conventions
 
-- Python 3.11+, Azure Functions Python **v2** model, `azure-identity`, `azure-monitor-query`,
+- Python 3.11+, Azure Functions Python **v2** model, `azure-identity`, `azure-monitor-querymetrics`,
   `azure-mgmt-resourcegraph`, `pydantic` v2, `httpx` (async). No `azure-cli` calls from code.
 - Type hints everywhere; `ruff` + `mypy` clean; `pytest` with ≥ 80% coverage on
   `evaluate/` and `recommend/` (these are the parts that can embarrass us).
-- All Azure API calls go through thin clients in `metrics/` and `inventory/` so tests can
+- All Azure API calls go through thin clients in `metrics/`, `inventory/` and `storage/` so tests can
   swap them. No SDK calls inside `evaluate/`, `recommend/`, or `notify/`.
 - Structured JSON logging to App Insights; log every skipped resource with a reason.
 - Terraform: latest Terraform and `azurerm` provider (4.x). Module name `module-azure-o11y`.
@@ -289,6 +296,9 @@ Identical names and meanings in both paths (snake_case in Terraform, UPPER_SNAKE
 | `plan_sku` | `EP1` | custom containers need Elastic Premium / Dedicated; Consumption is not valid |
 | `schedule_cron` | `0 */15 * * * *` | NCRONTAB |
 | `dry_run` | `false` | |
+| `ops_webhook_secret_name` | `o11y-ops-teams-webhook` | Key Vault secret name holding the Ops Teams webhook URL; **required** |
+| `subscription_ids` | `` | optional comma list; when set, scope is these subscriptions instead of the MG (fallback mode) |
+| `app_insights_name` | `` | optional existing App Insights component in the RG; sets `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 
 Adding a parameter means adding it to `variables.tf`, `deploy.env.example`, the script's arg
 parser, **and** this table in the same PR. `tests/test_param_parity.py` diffs the three.
