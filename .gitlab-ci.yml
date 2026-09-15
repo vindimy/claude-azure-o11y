@@ -1,0 +1,64 @@
+stages: [lint, build, plan, apply]
+
+variables:
+  IMAGE_NAME: o11y-alerting
+  TF_ROOT: terraform/examples/test-rg
+  TF_IN_AUTOMATION: "true"
+
+.python:
+  image: python:3.11
+  before_script:
+    - pip install -q -r requirements-dev.txt
+
+lint:python:
+  stage: lint
+  extends: .python
+  script:
+    - ruff check src tests scripts
+    - ruff format --check src tests scripts
+    - mypy src
+    - pytest
+
+lint:terraform:
+  stage: lint
+  image: hashicorp/terraform:latest
+  script:
+    - terraform fmt -check -recursive terraform
+    - cd $TF_ROOT
+    - terraform init -backend=false
+    - terraform validate
+
+build:
+  stage: build
+  image: docker:27
+  services: [docker:27-dind]
+  needs: ["lint:python", "lint:terraform"]
+  script:
+    - BASE_IMAGE=$(grep -v '^#' build/base-image.txt | tr -d '[:space:]')
+    - docker build --build-arg BASE_IMAGE="$BASE_IMAGE" -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:$CI_COMMIT_SHA" -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:main" .
+    # The runner already holds push rights to the ACR via its pre-configured docker credentials.
+    - docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$CI_COMMIT_SHA"
+    - if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:main"; fi
+
+plan:
+  stage: plan
+  image: hashicorp/terraform:latest
+  needs: ["build"]
+  script:
+    - cd $TF_ROOT
+    - terraform init
+    - terraform plan -input=false -var "image_tag=$CI_COMMIT_SHA" -out=tfplan
+  artifacts:
+    paths: [$TF_ROOT/tfplan, $TF_ROOT/.terraform.lock.hcl]
+    expire_in: 1 day
+
+apply:
+  stage: apply
+  image: hashicorp/terraform:latest
+  needs: ["plan"]
+  when: manual
+  only: [main]
+  script:
+    - cd $TF_ROOT
+    - terraform init
+    - terraform apply -input=false tfplan

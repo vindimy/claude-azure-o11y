@@ -1,0 +1,13 @@
+.git
+.venv
+out
+tests
+terraform
+scripts
+docs
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+deploy.env

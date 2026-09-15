@@ -1,0 +1,2 @@
+# Approved base image. Replace <approved-registry> with the bank's mirror; never pull from Docker Hub/MCR directly.
+<approved-registry>/azure-functions/python:4-python3.11
