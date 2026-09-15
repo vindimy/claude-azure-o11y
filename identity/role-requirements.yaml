@@ -1,0 +1,46 @@
+# Source of truth for what the externally managed UAMI must be granted.
+# Handed to the IAM automation repo as the request. docs/identity-requirements.md is generated
+# from this file (`make identity-doc`). Any new Azure call that needs a permission adds a row here first.
+# Placeholders in scope: {management_group_id} {law_resource_id} {storage_account_id} {key_vault_id} {acr_id}
+version: 1
+requirements:
+  - id: inventory
+    role: Reader
+    scope_type: management_group
+    scope: "{management_group_id}"
+    purpose: Resource Graph inventory (types, regions, SKUs, tags, power state)
+  - id: metrics
+    role: Monitoring Reader
+    scope_type: management_group
+    scope: "{management_group_id}"
+    purpose: Platform metrics via the Metrics Batch API (metrics:getBatch)
+  - id: law
+    role: Log Analytics Reader
+    scope_type: log_analytics_workspace
+    scope: "{law_resource_id}"
+    purpose: VM guest metrics (memory, disk) via KQL. Not used by the MVP; requested now to avoid a second IAM round-trip
+  - id: reports
+    role: Storage Blob Data Contributor
+    scope_type: storage_container
+    scope: "{storage_account_id}/blobServices/default/containers/reports"
+    purpose: Upload FinOps Markdown reports
+  - id: suppression
+    role: Storage Blob Data Contributor
+    scope_type: storage_container
+    scope: "{storage_account_id}/blobServices/default/containers/suppression"
+    purpose: Read/write the Ops alert suppression cache
+  - id: host_storage
+    role: Storage Blob Data Owner
+    scope_type: storage_account
+    scope: "{storage_account_id}"
+    purpose: Azure Functions host storage (AzureWebJobsStorage) over identity; timer-trigger leases and host state. Required because keys and connection strings are prohibited
+  - id: secrets
+    role: Key Vault Secrets User
+    scope_type: key_vault
+    scope: "{key_vault_id}"
+    purpose: Resolve Key Vault references for Teams webhook URLs (and SMTP later)
+  - id: acr_pull
+    role: AcrPull
+    scope_type: container_registry
+    scope: "{acr_id}"
+    purpose: Pull the o11y-alerting function image
