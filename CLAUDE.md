@@ -367,3 +367,17 @@ VM memory/disk (LAW) → Cosmos → SQL DB → SQL MI → PostgreSQL → Event H
   description instead.
 - When an Azure API behaves unexpectedly, pin the API version explicitly and note it in
   `docs/gotchas.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `vindimy/claude-azure-o11y` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary, label strings equal to role names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
