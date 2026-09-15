@@ -1,0 +1,10 @@
+{
+  "totalRecords": 3,
+  "count": 2,
+  "resultTruncated": "true",
+  "skipToken": "TOKEN-2",
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-hot", "name": "vm-hot", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "vmSize": "Standard_D4s_v5", "osType": "Linux", "powerState": "PowerState/running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-cold", "name": "vm-cold", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "100"}, "vmSize": "Standard_D8s_v5", "osType": "Windows", "powerState": "PowerState/running"}
+  ]
+}

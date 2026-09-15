@@ -1,0 +1,22 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z", "endtime": "2026-09-15T12:00:00Z", "interval": "PT1M",
+      "namespace": "Microsoft.Compute/virtualMachines", "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/VM-HOT",
+      "value": [{"id": "x", "type": "Microsoft.Insights/metrics", "name": {"value": "Percentage CPU", "localizedValue": "Percentage CPU"}, "unit": "Percent",
+        "timeseries": [{"metadatavalues": [], "data": [
+          {"timeStamp": "2026-09-15T11:00:00Z", "average": 95.0},
+          {"timeStamp": "2026-09-15T11:01:00Z", "average": 97.5},
+          {"timeStamp": "2026-09-15T11:02:00Z"}
+        ]}]}]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z", "endtime": "2026-09-15T12:00:00Z", "interval": "PT1M",
+      "namespace": "Microsoft.Compute/virtualMachines", "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-cold",
+      "value": [{"id": "y", "type": "Microsoft.Insights/metrics", "name": {"value": "Percentage CPU", "localizedValue": "Percentage CPU"}, "unit": "Percent",
+        "timeseries": [{"metadatavalues": [], "data": [{"timeStamp": "2026-09-15T11:00:00Z", "average": 3.0}]}]}]
+    }
+  ]
+}

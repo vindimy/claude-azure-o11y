@@ -1,0 +1,12 @@
+{
+  "totalRecords": 3,
+  "count": 3,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-nodata", "name": "vm-nodata", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {}, "vmSize": "Standard_B2s", "osType": "Linux", "powerState": "PowerState/running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-dev/providers/Microsoft.Compute/virtualMachines/vm-dev", "name": "vm-dev", "subscriptionId": "s1", "resourceGroup": "rg-app-dev", "location": "eastus", "tags": {}, "vmSize": "Standard_B2s", "osType": "Linux", "powerState": "PowerState/running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-stopped", "name": "vm-stopped", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "westus2", "tags": {}, "vmSize": "Standard_B2s", "osType": "Linux", "powerState": "PowerState/deallocated"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Compute/virtualMachines/vm-excluded", "name": "vm-excluded", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"o11y-exclude": "TRUE"}, "vmSize": "Standard_B2s", "osType": "Linux", "powerState": "PowerState/running"}
+  ]
+}
