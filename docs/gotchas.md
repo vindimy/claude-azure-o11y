@@ -32,4 +32,4 @@ A `field_validator` that lets `re.compile` raise `re.error` produces a bare trac
 
 ## Report path is per day, not per run
 
-`reports/<yyyy-mm-dd>/<mg>/virtual-machines.md` is overwritten by each run that day (latest wins). Per CLAUDE.md.
+`reports/<yyyy-mm-dd>/<mg>/virtual-machines.md` is overwritten by each run that day (latest wins). See docs/agents/notifications.md.
