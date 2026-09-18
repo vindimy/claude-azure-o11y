@@ -48,6 +48,7 @@ class Windows(_Strict):
 
 class MetricThreshold(_Strict):
     metric_name: str
+    unit: str = "Percent"
     ops_hot: float
     finops_cold: float
 
@@ -70,7 +71,6 @@ class Thresholds(_Strict):
     version: int = 1
     tags: TagNames = TagNames()
     windows: Windows = Windows()
-    suppression_window_hours: int = 4
     resource_types: ResourceTypes
 
 
@@ -98,21 +98,18 @@ class IgnoreConfig(_Strict):
         return [re.compile(p, re.IGNORECASE) for p in raw]
 
 
-class RoutingConfig(_Strict):
-    ops_webhook_env: str = "OPS_TEAMS_WEBHOOK_URL"
-    per_mg: dict[str, str] = {}
-
-    def ops_webhook_env_for(self, mg_id: str) -> str:
-        return self.per_mg.get(mg_id, self.ops_webhook_env)
-
-
 class AssignmentGroup(_Strict):
     email: EmailStr
-    teams_webhook: str | None = None
 
 
 class AssignmentGroups(RootModel[dict[str, AssignmentGroup]]):
-    pass
+    def email_for(self, group: str | None) -> str | None:
+        if not group:
+            return None
+        for name, spec in self.root.items():
+            if name.lower() == group.lower():
+                return str(spec.email)
+        return None
 
 
 class VmSku(_Strict):
@@ -143,6 +140,5 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     thresholds: Thresholds
     ignore: IgnoreConfig
-    routing: RoutingConfig
     assignment_groups: AssignmentGroups
     vm_skus: VmSkuCatalog

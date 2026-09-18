@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from typing import Protocol
-
-from models import HotAlert
+from typing import Any, Protocol
 
 
-class Notifier(Protocol):
-    async def send_hot(self, alert: HotAlert) -> None: ...
-
-
-class ReportSink(Protocol):
-    async def write(self, relative_path: str, markdown: str) -> str: ...
+class FindingsSink(Protocol):
+    async def write(self, table: str, rows: list[dict[str, Any]]) -> str:
+        """Write rows to a findings table; return where they went (for logs)."""
+        ...

@@ -17,20 +17,18 @@ Work in this order, one PR per type:
 3. Threshold defaults (`config/thresholds/default.yaml`)
 4. Recommend module (`src/recommend/<type>.py`, per `recommendations.md`)
 5. Tests with recorded fixtures
-6. Report section
+6. Findings rows: reuse the shared columns; add type-specific columns at the end of
+   `schema/findings-tables.json` only if needed (`findings.md`)
 
 If the type needs a new permission, follow `identity.md` before writing code.
 
 ## Backlog: write an ADR in `docs/adr/` before implementing
 
-- **Report hosting for outside teams.** Compare (a) a static website on the storage account, with
-  Markdown rendered to HTML at publish time behind a private endpoint, (b) a Teams channel file upload via
-  Graph with a link in the alert, and (c) GitLab Pages or wiki. Pick the option that needs the fewest new
-  permissions.
-- **Email transport.** Confirm the bank's SMTP relay; otherwise use a Logic App or ACS Email.
-- **Datadog.** Forward only the Ops and FinOps alerts that pass a per-MG "send to Datadog" filter. Compare
-  the Events API v2 and Logs intake (API key in Key Vault) against a webhook integration. The existing
-  Datadog Azure integration already pulls Azure Monitor metrics, so agree the boundary with Enterprise
-  Observability before building.
+- **Downstream alerting on the findings tables.** Log search alert rules and action groups (Ops channel,
+  owner / assignment-group email) and a FinOps workbook. Decide whether they live here or with
+  Enterprise Observability.
+- **Datadog.** Forward findings that pass a per-MG "send to Datadog" filter, ideally from the LAW tables
+  rather than from the function. The existing Datadog Azure integration already pulls Azure Monitor
+  metrics, so agree the boundary with Enterprise Observability before building.
 - **Per-subscription deployment mode**, the fallback if MG-scope performance or permissions fail.
 - **Future types:** AKS, App Service Plans, Storage, Redis, Function Apps.

@@ -30,6 +30,32 @@ Continuous deployment webhooks are unsupported on EP plans for containers. A dep
 A `field_validator` that lets `re.compile` raise `re.error` produces a bare traceback, not a
 `ValidationError`. `config/models.py` converts it to `ValueError` so a bad ignore regex fails startup cleanly.
 
-## Report path is per day, not per run
+## DCR stream types and table column types are spelled differently (2026-09-17)
 
-`reports/<yyyy-mm-dd>/<mg>/virtual-machines.md` is overwritten by each run that day (latest wins). See docs/agents/notifications.md.
+DCR `streamDeclarations` use `datetime`; the Tables API (`Microsoft.OperationalInsights/workspaces/tables`)
+uses `dateTime`, and the DCR has no `guid`. `schema/findings-tables.json` uses DCR spelling, and the
+Terraform module and `deploy.sh` map `datetime` → `dateTime` for tables. Pinned API versions: tables
+`2022-10-01`, DCE/DCR `2023-03-11`.
+
+## Custom table PUT is asynchronous; the DCR needs the table first (2026-09-17)
+
+A DCR whose `outputStream` is `Custom-<table>` is rejected until that table exists. `deploy.sh` polls the
+table's `provisioningState` before creating the DCR; the module sets `depends_on`. The DCE and DCR must
+also be in the workspace's region, which is read from the LAW itself (it may be in another subscription).
+
+## Images built on Apple Silicon must target linux/amd64 (2026-09-17)
+
+A plain `docker build` on an M-series Mac produces an arm64 image, and the Linux Functions host fails to
+start it. `scripts/build-image.sh` always passes `--platform linux/amd64`.
+
+## macOS bash 3.2: no `source <(...)` or associative arrays (2026-09-17)
+
+`/bin/bash` on macOS is 3.2. There, `source <(cmd)` silently reads nothing and `declare -A` fails, so
+`deploy.sh --param-file` loaded no parameters. Parameter parsing now lives in `scripts/lib/params.sh`
+(a plain `read` loop and indexed arrays). Keep scripts 3.2-compatible.
+
+## Logs Ingestion: new DCR role assignments and first rows are slow (2026-09-17)
+
+After `Monitoring Metrics Publisher` is granted on the DCR, uploads can return 403 for up to about 30
+minutes. The first rows in a new table can take several minutes to become queryable.
+`azure-monitor-ingestion` 1.1 splits uploads into ≤1 MB gzip chunks and raises on the first failed chunk.

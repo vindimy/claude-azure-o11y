@@ -7,12 +7,6 @@ resource "azurerm_service_plan" "this" {
   tags                = local.tags
 }
 
-resource "azurerm_storage_container" "this" {
-  for_each              = toset(local.containers)
-  name                  = each.value
-  storage_account_id    = data.azurerm_storage_account.this.id
-  container_access_type = "private"
-}
 
 resource "azurerm_linux_function_app" "this" {
   name                = local.function_app_name
@@ -51,4 +45,77 @@ resource "azurerm_linux_function_app" "this" {
       app_settings["WEBSITE_RUN_FROM_PACKAGE"],
     ]
   }
+}
+
+# --- Findings: Log Analytics custom tables fed by the Logs Ingestion API -----------------------
+
+resource "azapi_resource" "findings_table" {
+  for_each  = local.findings_tables
+  type      = "Microsoft.OperationalInsights/workspaces/tables@2022-10-01"
+  name      = each.key
+  parent_id = var.law_resource_id
+  body = {
+    properties = {
+      plan = "Analytics"
+      schema = {
+        name        = each.key
+        description = each.value.description
+        columns = [for c in each.value.columns : {
+          name        = c.name
+          type        = c.type == "datetime" ? "dateTime" : c.type
+          description = c.description
+        }]
+      }
+    }
+  }
+}
+
+# The DCE and DCR must be in the workspace's region.
+resource "azurerm_monitor_data_collection_endpoint" "findings" {
+  name                = local.dce_name
+  resource_group_name = data.azurerm_resource_group.this.name
+  location            = data.azapi_resource.law.location
+  tags                = local.tags
+}
+
+resource "azurerm_monitor_data_collection_rule" "findings" {
+  name                        = local.dcr_name
+  resource_group_name         = data.azurerm_resource_group.this.name
+  location                    = data.azapi_resource.law.location
+  data_collection_endpoint_id = azurerm_monitor_data_collection_endpoint.findings.id
+  tags                        = local.tags
+
+  destinations {
+    log_analytics {
+      name                  = "law"
+      workspace_resource_id = var.law_resource_id
+    }
+  }
+
+  dynamic "stream_declaration" {
+    for_each = local.findings_tables
+    content {
+      stream_name = "Custom-${stream_declaration.key}"
+      dynamic "column" {
+        for_each = stream_declaration.value.columns
+        content {
+          name = column.value.name
+          type = column.value.type
+        }
+      }
+    }
+  }
+
+  dynamic "data_flow" {
+    for_each = local.findings_tables
+    content {
+      streams       = ["Custom-${data_flow.key}"]
+      destinations  = ["law"]
+      transform_kql = "source"
+      output_stream = "Custom-${data_flow.key}"
+    }
+  }
+
+  # The output streams must exist before the DCR references them.
+  depends_on = [azapi_resource.findings_table]
 }

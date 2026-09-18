@@ -1,6 +1,6 @@
 # Thresholds and noise control
 
-Read this before touching `config/thresholds/`, `config/ignore.yaml`, tag overrides, or suppression.
+Read this before touching `config/thresholds/`, `config/ignore.yaml`, or tag overrides.
 Read `config/thresholds/default.yaml` too; it is the live shape.
 
 ## Threshold files
@@ -18,8 +18,9 @@ Tag names live in the `tags:` block of the thresholds config. The values below a
 
 - `o11y-threshold-<metric>-<hot|cold>=<value>` (e.g. `o11y-threshold-cpu-hot=95`) overrides the
   config for that metric on that resource.
-- `o11y-exclude=true` skips the resource. It must still appear in the report's "excluded" appendix, so
-  exclusions stay visible.
+- `o11y-exclude=true` skips the resource. Its ID must still appear in the `excluded` field of the
+  `run complete` log, so exclusions stay visible.
+- A tag override is recorded as `ThresholdSource = tag` on the finding row.
 
 ## Resource-group ignore list
 
@@ -37,11 +38,12 @@ per_mg:
 
 - Matching RGs are dropped at the inventory stage, before any metrics call, so ignored resources cost
   nothing.
-- The report footer counts ignored RGs but does not list them.
+- The `run complete` log counts ignored RGs (`ignored_rg_count`) but does not list them.
 - A bad regex fails startup; it never silently matches everything.
 - Every pattern gets positive and negative cases in `tests/test_ignore.py`.
 
-## Suppression
+## No suppression
 
-An Ops alert for the same (resource, metric) pair is not re-sent within `suppression_window_hours`
-(default 4). The cache is a small blob-backed store in the `suppression/` container with a short TTL.
+The function does not de-duplicate. Every Ops run writes a row for each hot resource, so the table shows
+how long a resource has been hot. De-duplication belongs in the alert rule (mute actions, or
+`summarize` by `ResourceId`), not in the function.

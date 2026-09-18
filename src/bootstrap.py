@@ -13,17 +13,15 @@ from config.loader import load_config
 from config.models import AppConfig
 from config.settings import Settings
 from errors import PermissionMissing
-from evaluate.suppression import LocalSuppressionStore
 from inventory.vms import ResourceGraphInventory
 from logging_setup import configure_logging
 from metrics.batch import MetricsBatchClient
 from models import RunSummary
-from notify.console import ConsoleNotifier
-from notify.sinks import BlobReportSink, LocalReportSink
-from notify.teams import TeamsNotifier
-from pipeline import Clients, run
+from notify.base import FindingsSink
+from notify.sinks import LocalFindingsSink
+from pipeline import Clients, RunMode, run
 from recommend.pricing import RetailPriceClient
-from storage.blob import BlobStore, BlobSuppressionStore
+from storage.law import LogsIngestionSink
 
 log = logging.getLogger(__name__)
 
@@ -41,40 +39,22 @@ async def build_clients(
     stack.push_async_callback(metrics.close)
     pricing = RetailPriceClient(http, settings.pricing_currency)
 
+    findings: FindingsSink
     if settings.dry_run:
-        suppression_path = settings.output_dir / "suppression" / f"{settings.mg_id}.json"
-        return Clients(
-            inventory=inventory,
-            metrics=metrics,
-            pricing=pricing,
-            notifier=ConsoleNotifier(config.thresholds.tags),
-            sink=LocalReportSink(settings.output_dir),
-            suppression_store=LocalSuppressionStore(suppression_path),
+        findings = LocalFindingsSink(settings.output_dir)
+    else:
+        for name in ("logs_ingestion_endpoint", "findings_dcr_immutable_id"):
+            if not getattr(settings, name):
+                raise RuntimeError(f"{name.upper()} is required when DRY_RUN=false")
+        sink = LogsIngestionSink(
+            credential, settings.logs_ingestion_endpoint, settings.findings_dcr_immutable_id
         )
-
-    webhook_env = config.routing.ops_webhook_env_for(settings.mg_id)
-    webhook = os.environ.get(webhook_env, "")
-    if not webhook:
-        raise RuntimeError(
-            f"Ops webhook app setting {webhook_env} is empty (Key Vault reference unresolved?)"
-        )
-    if not settings.storage_account_name:
-        raise RuntimeError("STORAGE_ACCOUNT_NAME is required when DRY_RUN=false")
-    store = BlobStore(credential, settings.storage_account_name)
-    stack.push_async_callback(store.close)
-    return Clients(
-        inventory=inventory,
-        metrics=metrics,
-        pricing=pricing,
-        notifier=TeamsNotifier(http, webhook, config.thresholds.tags),
-        sink=BlobReportSink(store, settings.reports_container),
-        suppression_store=BlobSuppressionStore(
-            store, settings.suppression_container, f"{settings.mg_id}.json"
-        ),
-    )
+        stack.push_async_callback(sink.close)
+        findings = sink
+    return Clients(inventory=inventory, metrics=metrics, pricing=pricing, findings=findings)
 
 
-async def main() -> RunSummary:
+async def main(mode: RunMode) -> RunSummary:
     configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
     settings = Settings()  # type: ignore[call-arg]  # mg_id and friends come from the environment
     config = load_config(settings.config_dir, settings.mg_id)
@@ -83,7 +63,7 @@ async def main() -> RunSummary:
         stack.push_async_callback(credential.close)
         clients = await build_clients(settings, config, credential, stack)
         try:
-            return await run(settings, config, clients)
+            return await run(settings, config, clients, mode)
         except PermissionMissing as e:
             log.error(e.describe(settings.identity_file), extra={"need": e.need})
             raise

@@ -1,7 +1,7 @@
 azure-identity>=1.25,<2
 azure-monitor-querymetrics>=1.0,<2
+azure-monitor-ingestion>=1.1,<2
 azure-mgmt-resourcegraph>=8.0,<9
-azure-storage-blob>=12.30,<13
 azure-functions>=1.21,<3
 pydantic[email]>=2.10,<3
 pydantic-settings>=2.6,<3

@@ -1,26 +1,20 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
-from storage.blob import BlobStore
 
+class LocalFindingsSink:
+    """Dry-run sink: appends rows as JSON lines to <output_dir>/findings/<table>.jsonl."""
 
-class LocalReportSink:
     def __init__(self, output_dir: Path) -> None:
-        self._dir = output_dir
+        self._dir = output_dir / "findings"
 
-    async def write(self, relative_path: str, markdown: str) -> str:
-        path = self._dir / "reports" / relative_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(markdown)
+    async def write(self, table: str, rows: list[dict[str, Any]]) -> str:
+        self._dir.mkdir(parents=True, exist_ok=True)
+        path = self._dir / f"{table}.jsonl"
+        with path.open("a") as fh:
+            for row in rows:
+                fh.write(json.dumps(row, sort_keys=True) + "\n")
         return str(path)
-
-
-class BlobReportSink:
-    def __init__(self, store: BlobStore, container: str) -> None:
-        self._store, self._container = store, container
-
-    async def write(self, relative_path: str, markdown: str) -> str:
-        return await self._store.write_text(
-            self._container, relative_path, markdown, "text/markdown"
-        )

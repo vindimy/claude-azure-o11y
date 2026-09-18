@@ -2,8 +2,13 @@
 locals {
   function_app_name     = var.function_app_name != "" ? var.function_app_name : "func-o11y-alerting"
   app_service_plan_name = var.app_service_plan_name != "" ? var.app_service_plan_name : "asp-o11y-alerting"
-  containers            = ["reports", "suppression"]
+  dce_name              = "dce-o11y-findings"
+  dcr_name              = "dcr-o11y-findings"
   registry_url          = "https://${data.azurerm_container_registry.this.login_server}"
+
+  # Shared with src/notify/findings.py and scripts/deploy.sh. DCR streams spell the type "datetime";
+  # the Tables API wants "dateTime".
+  findings_tables = jsondecode(file("${path.module}/../../schema/findings-tables.json")).tables
 
   app_settings = merge(
     {
@@ -14,12 +19,13 @@ locals {
       MG_ID                               = var.management_group_id
       SUBSCRIPTION_IDS                    = var.subscription_ids
       LAW_RESOURCE_ID                     = var.law_resource_id
-      STORAGE_ACCOUNT_NAME                = var.storage_account_name
-      SCHEDULE_CRON                       = var.schedule_cron
+      OPS_SCHEDULE_CRON                   = var.ops_schedule_cron
+      FINOPS_SCHEDULE_CRON                = var.finops_schedule_cron
       DRY_RUN                             = tostring(var.dry_run)
       CONFIG_DIR                          = "config"
       IDENTITY_FILE                       = "identity/role-requirements.yaml"
-      OPS_TEAMS_WEBHOOK_URL               = "@Microsoft.KeyVault(VaultName=${var.key_vault_name};SecretName=${var.ops_webhook_secret_name})"
+      LOGS_INGESTION_ENDPOINT             = azurerm_monitor_data_collection_endpoint.findings.logs_ingestion_endpoint
+      FINDINGS_DCR_IMMUTABLE_ID           = azurerm_monitor_data_collection_rule.findings.immutable_id
     },
     var.app_insights_name == "" ? {} : {
       APPLICATIONINSIGHTS_CONNECTION_STRING = data.azurerm_application_insights.this[0].connection_string

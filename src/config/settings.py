@@ -15,10 +15,8 @@ class Settings(BaseSettings):
     mg_id: str
     subscription_ids: str = ""
     law_resource_id: str = ""
-    storage_account_name: str = ""
-    reports_container: str = "reports"
-    suppression_container: str = "suppression"
-    ops_teams_webhook_url: str = ""
+    logs_ingestion_endpoint: str = ""
+    findings_dcr_immutable_id: str = ""
     dry_run: bool = False
     output_dir: Path = Path("./out")
     config_dir: Path = Path("config")

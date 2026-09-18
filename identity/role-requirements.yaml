@@ -2,6 +2,7 @@
 # Handed to the IAM automation repo as the request. docs/identity-requirements.md is generated
 # from this file (`make identity-doc`). Any new Azure call that needs a permission adds a row here first.
 # Placeholders in scope: {management_group_id} {law_resource_id} {storage_account_id} {key_vault_id} {acr_id}
+#                        {findings_dcr_id} (created by this repo's deployment; see docs/agents/findings.md)
 version: 1
 requirements:
   - id: inventory
@@ -19,16 +20,11 @@ requirements:
     scope_type: log_analytics_workspace
     scope: "{law_resource_id}"
     purpose: VM guest metrics (memory, disk) via KQL. Not used by the MVP; requested now to avoid a second IAM round-trip
-  - id: reports
-    role: Storage Blob Data Contributor
-    scope_type: storage_container
-    scope: "{storage_account_id}/blobServices/default/containers/reports"
-    purpose: Upload FinOps Markdown reports
-  - id: suppression
-    role: Storage Blob Data Contributor
-    scope_type: storage_container
-    scope: "{storage_account_id}/blobServices/default/containers/suppression"
-    purpose: Read/write the Ops alert suppression cache
+  - id: findings_ingest
+    role: Monitoring Metrics Publisher
+    scope_type: data_collection_rule
+    scope: "{findings_dcr_id}"
+    purpose: Write Ops and FinOps findings to the Log Analytics custom tables through the Logs Ingestion API (findings DCR)
   - id: host_storage
     role: Storage Blob Data Owner
     scope_type: storage_account
@@ -38,7 +34,7 @@ requirements:
     role: Key Vault Secrets User
     scope_type: key_vault
     scope: "{key_vault_id}"
-    purpose: Resolve Key Vault references for Teams webhook URLs (and SMTP later)
+    purpose: Resolve Key Vault references for app-setting secrets. No secret is read today; kept for SMTP/Datadog keys
   - id: acr_pull
     role: AcrPull
     scope_type: container_registry

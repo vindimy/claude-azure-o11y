@@ -20,8 +20,9 @@ Timer trigger (cron per MG config)
             └─ Group by (subscription, region, resource type)
                  └─ Metrics: metrics:getBatch (regional endpoint), ≤50 resource IDs per call
                       └─ Evaluate against this MG's thresholds
-                           ├─ Ops hot → Teams (Ops + owner routing) + email
-                           └─ FinOps cold → recommendation + savings → Markdown report
+                           ├─ Ops hot → O11yOpsFindings_CL
+                           └─ FinOps cold → recommendation + savings → O11yFinOpsFindings_CL
+                                (both via the Logs Ingestion API: DCE → findings DCR → LAW)
 ```
 
 ## Metrics: batch, never per resource
@@ -61,15 +62,18 @@ Guest-OS metrics apply to VMs only.
 
 ## Out of scope
 
-- **History.** Runs keep no history. Storage holds only the `reports` and `suppression` containers, plus
-  Functions host state. Never add a database or table.
+- **History beyond the findings tables.** Runs keep no other state. Storage holds only Functions host
+  state. Never add a database or another table; findings history is the
+  LAW tables (ADR-0001).
+- **Sending notifications.** Teams, email, and paging are built on the tables downstream.
 - **Auto-remediation.** The system recommends; humans resize.
 - **Azure Advisor and Cost Management integration.**
 
 ## Code boundaries
 
-- Every Azure call goes through a thin client in `inventory/`, `metrics/`, or `storage/`, behind the
-  Protocols in `src/ports.py`. `evaluate/`, `recommend/`, and `notify/` are SDK-free and take plain
-  data (`src/models.py`), so tests can swap the clients.
+- Every Azure call goes through a thin client in `inventory/`, `metrics/`, or `storage/` (blob and Logs
+  Ingestion), behind the Protocols in `src/ports.py` and `src/notify/base.py`. `evaluate/`, `recommend/`,
+  and `notify/` (findings row builders) are SDK-free and take plain data (`src/models.py`), so tests can
+  swap the clients.
 - Code makes no `azure-cli` calls.
 - Logging is structured JSON to App Insights. Log every skipped resource with a reason.

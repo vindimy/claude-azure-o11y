@@ -17,3 +17,20 @@ output "image_reference" {
 output "uami_client_id" {
   value = data.azurerm_user_assigned_identity.this.client_id
 }
+
+output "findings_dcr_id" {
+  description = "Scope for the findings_ingest role (Monitoring Metrics Publisher) in identity/role-requirements.yaml."
+  value       = azurerm_monitor_data_collection_rule.findings.id
+}
+
+output "findings_dcr_immutable_id" {
+  value = azurerm_monitor_data_collection_rule.findings.immutable_id
+}
+
+output "logs_ingestion_endpoint" {
+  value = azurerm_monitor_data_collection_endpoint.findings.logs_ingestion_endpoint
+}
+
+output "findings_tables" {
+  value = keys(local.findings_tables)
+}

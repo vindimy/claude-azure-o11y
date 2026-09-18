@@ -50,6 +50,9 @@ class Skip:
     detail: str = ""
 
 
+ThresholdSource = Literal["config", "tag"]
+
+
 @dataclass(frozen=True)
 class HotAlert:
     resource: VmResource
@@ -57,6 +60,7 @@ class HotAlert:
     observed: float
     threshold: float
     lookback_minutes: int
+    threshold_source: ThresholdSource = "config"
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,7 @@ class ColdFinding:
     threshold: float
     lookback_days: int
     coverage: float
+    threshold_source: ThresholdSource = "config"
 
 
 Confidence = Literal["high", "medium", "low"]
@@ -91,17 +96,18 @@ class Recommendation:
 @dataclass
 class RunSummary:
     mg_id: str
+    mode: str
     started_at: datetime
     inventory_total: int = 0
     evaluated: int = 0
-    hot_alerts: int = 0
-    hot_suppressed: int = 0
-    cold_findings: int = 0
+    findings: int = 0
+    rows_written: int = 0
+    write_failures: int = 0
     skips: dict[str, int] = field(default_factory=dict)
     ignored_rg_count: int = 0
     excluded: list[VmResource] = field(default_factory=list)
     chunk_failures: int = 0
-    report_location: str | None = None
+    destinations: dict[str, str] = field(default_factory=dict)
 
     def count_skip(self, reason: str) -> None:
         self.skips[reason] = self.skips.get(reason, 0) + 1

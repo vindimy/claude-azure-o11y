@@ -1,0 +1,10 @@
+# Reference inputs for the IAM repo. Copy to terraform.tfvars (git-ignored).
+resource_group_name = "rg-o11y-test"
+location            = "centralus"
+uami_name           = "id-o11y-alerting"
+management_group_id = "mg-prod"
+law_resource_id     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-monitoring/providers/Microsoft.OperationalInsights/workspaces/law-central"
+storage_account_id  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.Storage/storageAccounts/sto11yalerting"
+key_vault_id        = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.KeyVault/vaults/kv-o11y-alerting"
+acr_id              = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.ContainerRegistry/registries/acrusbcloud"
+findings_dcr_id     = "" # second pass: module-azure-o11y output findings_dcr_id

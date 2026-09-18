@@ -6,8 +6,9 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
 
 - One module per resource type. Each is a rules engine (no ML) made of pure functions and unit-tested
   with fixtures.
-- Every recommendation carries a `confidence` (`high|medium|low`) and a `reason` string. The report
-  prints the reason verbatim, so FinOps can see why each row exists.
+- Every recommendation carries a `confidence` (`high|medium|low`) and a `reason` string. They are
+  written verbatim to the `Confidence` and `Reason` columns of `O11yFinOpsFindings_CL`, so FinOps can see
+  why each row exists.
 - Per-MG knobs (e.g. `min_vcpu`) go in the `recommend:` block of the thresholds config.
 
 ## Rules by type

@@ -16,7 +16,6 @@ def test_load_default_config(config_dir: Path) -> None:
     assert cfg.thresholds.resource_types.vm.metrics["cpu"].finops_cold == 20
     assert cfg.thresholds.resource_types.vm.recommend.min_vcpu == 1
     assert cfg.thresholds.tags.exclude == "o11y-exclude"
-    assert cfg.routing.ops_webhook_env_for("mg-nonprod") == "OPS_TEAMS_WEBHOOK_URL"
     assert "cloud-engineering" in cfg.assignment_groups.root
 
 

@@ -1,5 +1,5 @@
 variable "resource_group_name" {
-  description = "Existing resource group that receives the plan, function app and containers."
+  description = "Existing resource group that receives the plan, function app, and findings DCE/DCR."
   type        = string
 }
 
@@ -14,12 +14,12 @@ variable "uami_name" {
 }
 
 variable "storage_account_name" {
-  description = "Existing storage account for host storage, reports and suppression containers."
+  description = "Existing storage account for Functions host storage (identity-based; the app keeps no other state)."
   type        = string
 }
 
 variable "key_vault_name" {
-  description = "Existing Key Vault holding webhook secrets."
+  description = "Existing Key Vault for app-setting secret references (none used today; SMTP/Datadog later)."
   type        = string
 }
 
@@ -35,9 +35,12 @@ variable "subscription_ids" {
 }
 
 variable "law_resource_id" {
-  description = "Central Log Analytics workspace resource ID for VM guest metrics (unused by the MVP)."
+  description = "Existing Log Analytics workspace resource ID. Receives the findings tables; also the source of VM guest metrics later."
   type        = string
-  default     = ""
+  validation {
+    condition     = can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.OperationalInsights/workspaces/[^/]+$", var.law_resource_id))
+    error_message = "law_resource_id must be a full Log Analytics workspace resource ID."
+  }
 }
 
 variable "acr_name" {
@@ -78,21 +81,22 @@ variable "plan_sku" {
   }
 }
 
-variable "schedule_cron" {
-  description = "NCRONTAB schedule for the timer trigger."
+variable "ops_schedule_cron" {
+  description = "NCRONTAB schedule (UTC) for the Ops run; every run writes a row per hot resource."
   type        = string
   default     = "0 */15 * * * *"
 }
 
-variable "dry_run" {
-  description = "When true, no notifications are sent and reports are written locally inside the container."
-  type        = bool
-  default     = false
+variable "finops_schedule_cron" {
+  description = "NCRONTAB schedule (UTC) for the FinOps run; daily by default."
+  type        = string
+  default     = "0 0 6 * * *"
 }
 
-variable "ops_webhook_secret_name" {
-  description = "Key Vault secret name holding the Ops Teams (Power Automate) webhook URL."
-  type        = string
+variable "dry_run" {
+  description = "When true, findings are written as JSON lines inside the container instead of to Log Analytics."
+  type        = bool
+  default     = false
 }
 
 variable "app_insights_name" {

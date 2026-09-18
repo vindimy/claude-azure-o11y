@@ -27,3 +27,9 @@ data "azurerm_application_insights" "this" {
   name                = var.app_insights_name
   resource_group_name = var.resource_group_name
 }
+
+# The workspace may live in another subscription, so read it by ARM ID rather than name + RG.
+data "azapi_resource" "law" {
+  type        = "Microsoft.OperationalInsights/workspaces@2022-10-01"
+  resource_id = var.law_resource_id
+}

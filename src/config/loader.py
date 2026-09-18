@@ -11,7 +11,6 @@ from config.models import (
     AppConfig,
     AssignmentGroups,
     IgnoreConfig,
-    RoutingConfig,
     Thresholds,
     VmSkuCatalog,
 )
@@ -44,7 +43,6 @@ def load_config(config_dir: Path, mg_id: str) -> AppConfig:
     return AppConfig(
         thresholds=Thresholds.model_validate(thresholds_raw),
         ignore=IgnoreConfig.model_validate(_read_yaml(config_dir / "ignore.yaml")),
-        routing=RoutingConfig.model_validate(_read_yaml(config_dir / "routing.yaml")),
         assignment_groups=AssignmentGroups.model_validate(
             _read_yaml(config_dir / "assignment-groups.yaml")
         ),

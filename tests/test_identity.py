@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -12,8 +13,7 @@ REQUIRED_IDS = {
     "inventory",
     "metrics",
     "law",
-    "reports",
-    "suppression",
+    "findings_ingest",
     "host_storage",
     "secrets",
     "acr_pull",
@@ -27,7 +27,9 @@ def test_yaml_has_every_need(repo_root: Path) -> None:
     for r in rows.values():
         assert {"id", "role", "scope_type", "scope", "purpose"} <= set(r)
     assert rows["host_storage"]["role"] == "Storage Blob Data Owner"
-    assert rows["reports"]["scope_type"] == "storage_container"
+    assert rows["findings_ingest"]["role"] == "Monitoring Metrics Publisher"
+    assert rows["findings_ingest"]["scope_type"] == "data_collection_rule"
+    assert "reports" not in rows
 
 
 def test_generated_doc_is_current(repo_root: Path, tmp_path: Path) -> None:
@@ -51,3 +53,13 @@ def test_permission_missing_describe(repo_root: Path) -> None:
     assert msg.startswith("missing Monitoring Reader on management_group")
     assert "s1/eastus" in msg
     assert PermissionMissing("nope").describe(yaml_path) == "missing permission for need 'nope'"
+
+
+def test_every_scope_placeholder_is_resolvable(repo_root: Path) -> None:
+    doc = yaml.safe_load((repo_root / "identity" / "role-requirements.yaml").read_text())
+    used = {p for r in doc["requirements"] for p in re.findall(r"\{[a-z_]+\}", r["scope"])}
+    uami_example = (repo_root / "terraform" / "examples" / "iam-uami" / "main.tf").read_text()
+    check_script = (repo_root / "scripts" / "check-identity.sh").read_text()
+    for placeholder in used:
+        assert f'"{placeholder}"' in uami_example, placeholder
+        assert f"\\{placeholder[:-1]}\\}}" in check_script, placeholder

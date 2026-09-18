@@ -1,8 +1,10 @@
 # claude-azure-o11y
 
 Scheduled Azure Function (Python, custom container) that evaluates built-in Azure Monitor metrics across
-every subscription under a management group and produces **Ops alerts** (hot resources → Teams) and a
-**FinOps savings report** (cold resources → Markdown in blob storage). MVP scope: VM `Percentage CPU`.
+every subscription under a management group and writes **Ops findings** (hot resources →
+`O11yOpsFindings_CL`) and **FinOps findings** (cold resources with a downsizing recommendation and saving →
+`O11yFinOpsFindings_CL`) to a Log Analytics workspace. MVP scope: VM `Percentage CPU`. Table schema:
+[schema/findings-tables.json](schema/findings-tables.json) · [docs/agents/findings.md](docs/agents/findings.md).
 
 Design and rationale: [CLAUDE.md](CLAUDE.md) → [docs/agents/](docs/agents/) · spec: [docs/superpowers/specs](docs/superpowers/specs/) ·
 plan: [docs/superpowers/plans](docs/superpowers/plans/) · surprises: [docs/gotchas.md](docs/gotchas.md) ·
@@ -18,15 +20,17 @@ make identity-doc  # regenerate docs/identity-requirements.md from identity/role
 ```
 
 Run one evaluation against a real subscription in dry-run mode (uses `az login` credentials; nothing is
-sent, the report lands in `./out/reports/<date>/<mg>/virtual-machines.md`):
+written to Log Analytics, rows land in `./out/findings/<table>.jsonl`):
 
 ```bash
-scripts/run-once.sh --mg-id mg-nonprod --subscription-ids "<subscription-id>"
+scripts/run-once.sh --mg-id mg-nonprod --subscription-ids "<subscription-id>" [--mode ops|finops|all]
 ```
 
 ## Deploying
 
 The image is built and pushed by GitLab CI (`.gitlab-ci.yml`) as `<acr>/o11y-alerting:<commit sha>`.
+Without CI, `scripts/build-image.sh --param-file deploy.env` builds and pushes the same tag, and `--deploy`
+then runs `deploy.sh` ([details](docs/agents/deployment.md#building-and-pushing-the-image-manually)).
 Both deployment paths take the same parameters and only reference that tag.
 
 - **Path A (dev, az CLI):** `cp scripts/deploy.env.example deploy.env`, fill it in, then
@@ -35,11 +39,12 @@ Both deployment paths take the same parameters and only reference that tag.
   A new `image_tag` is the deploy; the pipeline's `apply` stage is manual.
 
 The runtime identity is an existing user-assigned managed identity. What it must be granted is listed in
-`identity/role-requirements.yaml`; `scripts/check-identity.sh` verifies it.
+`identity/role-requirements.yaml`; `scripts/check-identity.sh` verifies it. `terraform/examples/iam-uami`
+is a reference definition of that UAMI and its role assignments for the IAM repo.
 
 ## Configuration
 
 `config/thresholds/default.yaml` (per-MG overrides in `config/thresholds/<mg-id>.yaml`), `config/ignore.yaml`
-(resource-group regex ignore list), `config/routing.yaml`, `config/assignment-groups.yaml`, `config/vm-skus.yaml`.
+(resource-group regex ignore list), `config/assignment-groups.yaml`, `config/vm-skus.yaml`.
 Per-resource tags `o11y-threshold-cpu-hot=95` / `o11y-threshold-cpu-cold=10` override thresholds; `o11y-exclude=true`
-skips a resource (it still appears in the report's excluded appendix).
+skips a resource (it is still listed in the run's `run complete` log).

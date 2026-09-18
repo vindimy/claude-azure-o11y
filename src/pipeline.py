@@ -1,27 +1,39 @@
-"""Orchestrates one evaluation run. No SDK imports here; clients arrive through ports."""
+"""Orchestrates one evaluation run (Ops or FinOps). No SDK imports; clients arrive through ports."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from config.models import AppConfig
 from config.settings import Settings
-from evaluate.suppression import SuppressionCache, SuppressionStore
-from evaluate.vm import VmEvaluation, evaluate_vm
+from errors import PermissionMissing
+from evaluate.vm import evaluate_cold, evaluate_hot
 from inventory.filters import filter_vms
 from metrics.batch import MetricWindow, chunk
-from models import MetricPoint, Recommendation, RunSummary, Skip, VmResource
-from notify.base import Notifier, ReportSink
-from notify.report import ReportMeta, render_vm_report, report_relative_path
+from models import MetricPoint, RunSummary, Skip, VmResource
+from notify.base import FindingsSink
+from notify.findings import (
+    FINOPS_TABLE,
+    OPS_TABLE,
+    MetricContext,
+    RunContext,
+    finops_row,
+    ops_row,
+)
 from ports import InventoryPort, MetricsPort, PricingPort
 from recommend.vm import recommend_vm, with_pricing
 
 log = logging.getLogger(__name__)
 METRIC_KEY = "cpu"
+
+# One timer trigger per mode: Ops every few minutes, FinOps once a day.
+RunMode = Literal["ops", "finops"]
 
 
 @dataclass
@@ -29,16 +41,13 @@ class Clients:
     inventory: InventoryPort
     metrics: MetricsPort
     pricing: PricingPort
-    notifier: Notifier
-    sink: ReportSink
-    suppression_store: SuppressionStore
+    findings: FindingsSink
 
 
 @dataclass
 class _ChunkResult:
     vms: list[VmResource]
-    ops: dict[str, list[MetricPoint]]
-    finops: dict[str, list[MetricPoint]]
+    points: dict[str, list[MetricPoint]]
     error: str | None = None
 
 
@@ -47,23 +56,42 @@ async def _fetch_chunk(
     vms: list[VmResource],
     namespace: str,
     metric_name: str,
-    ops_window: MetricWindow,
-    finops_window: MetricWindow,
+    window: MetricWindow,
     sem: asyncio.Semaphore,
 ) -> _ChunkResult:
     region, sub = vms[0].location, vms[0].subscription_id
     ids = [v.id for v in vms]
     async with sem:
         try:
-            ops = await metrics.query(region, sub, ids, namespace, metric_name, ops_window)
-            finops = await metrics.query(region, sub, ids, namespace, metric_name, finops_window)
+            points = await metrics.query(region, sub, ids, namespace, metric_name, window)
         except Exception as e:  # noqa: BLE001 - one bad chunk must not kill the run
             log.exception(
                 "metrics chunk failed",
                 extra={"region": region, "subscription": sub, "count": len(ids)},
             )
-            return _ChunkResult(vms, {}, {}, error=f"{type(e).__name__}: {e}")
-    return _ChunkResult(vms, ops, finops)
+            return _ChunkResult(vms, {}, error=f"{type(e).__name__}: {e}")
+    return _ChunkResult(vms, points)
+
+
+class FindingsWriteFailed(RuntimeError):
+    """Raised after the run completes when the findings table write failed."""
+
+
+async def _write(
+    sink: FindingsSink, table: str, rows: list[dict[str, Any]], summary: RunSummary
+) -> None:
+    if not rows:
+        return
+    try:
+        summary.destinations[table] = await sink.write(table, rows)
+    except PermissionMissing:
+        raise
+    except Exception:  # noqa: BLE001 - logged with context, then surfaced after the summary
+        summary.write_failures += 1
+        log.exception("findings write failed", extra={"table": table, "rows": len(rows)})
+        return
+    summary.rows_written = len(rows)
+    log.info("findings written", extra={"table": table, "rows": len(rows)})
 
 
 def _log_skip(skip: Skip, summary: RunSummary) -> None:
@@ -75,13 +103,18 @@ def _log_skip(skip: Skip, summary: RunSummary) -> None:
 
 
 async def run(
-    settings: Settings, config: AppConfig, clients: Clients, now: datetime | None = None
+    settings: Settings,
+    config: AppConfig,
+    clients: Clients,
+    mode: RunMode,
+    now: datetime | None = None,
+    run_id: str | None = None,
 ) -> RunSummary:
     now = now or datetime.now(UTC)
-    summary = RunSummary(mg_id=settings.mg_id, started_at=now)
+    summary = RunSummary(mg_id=settings.mg_id, mode=mode, started_at=now)
     th = config.thresholds
     vm_cfg = th.resource_types.vm
-    metric_name = vm_cfg.metrics[METRIC_KEY].metric_name
+    metric_cfg = vm_cfg.metrics[METRIC_KEY]
 
     # 1. Inventory + filters
     all_vms = await clients.inventory.list_vms(settings.scope)
@@ -96,32 +129,43 @@ async def run(
         extra={"total": len(all_vms), "kept": len(filtered.kept), "scope": settings.scope.kind},
     )
 
-    # 2. Metrics, batched per (subscription, region), <= batch_size ids per call
+    # 2. Metrics for this mode's window only, batched per (subscription, region)
+    if mode == "ops":
+        window = MetricWindow.ops(th.windows.ops, now)
+        aggregation = th.windows.ops.aggregation
+    else:
+        window = MetricWindow.finops(th.windows.finops, now)
+        aggregation = th.windows.finops.aggregation
     groups: dict[tuple[str, str], list[VmResource]] = defaultdict(list)
     for vm in filtered.kept:
         groups[(vm.subscription_id, vm.location)].append(vm)
-    ops_window = MetricWindow.ops(th.windows.ops, now)
-    finops_window = MetricWindow.finops(th.windows.finops, now)
     sem = asyncio.Semaphore(settings.max_concurrency)
     tasks = []
     for vms in groups.values():
         by_id = {v.id: v for v in vms}
         for ids in chunk([v.id for v in vms], settings.batch_size):
+            batch = [by_id[i] for i in ids]
             tasks.append(
                 _fetch_chunk(
-                    clients.metrics,
-                    [by_id[i] for i in ids],
-                    vm_cfg.namespace,
-                    metric_name,
-                    ops_window,
-                    finops_window,
-                    sem,
+                    clients.metrics, batch, vm_cfg.namespace, metric_cfg.metric_name, window, sem
                 )
             )
     results = await asyncio.gather(*tasks)
 
-    # 3. Evaluate
-    evaluations: list[VmEvaluation] = []
+    run_ctx = RunContext(
+        run_id=run_id or str(uuid.uuid4()),
+        mg_id=settings.mg_id,
+        run_at=now,
+        tags=th.tags,
+        assignment_groups=config.assignment_groups,
+        currency=settings.pricing_currency,
+    )
+    metric_ctx = MetricContext(
+        vm_cfg.namespace, METRIC_KEY, metric_cfg, aggregation, window.start, window.end
+    )
+
+    # 3. Evaluate this mode's side and build rows
+    rows: list[dict[str, Any]] = []
     for res in results:
         if res.error:
             summary.chunk_failures += 1
@@ -129,77 +173,54 @@ async def run(
                 _log_skip(Skip(vm.id, "chunk_failed", res.error), summary)
             continue
         for vm in res.vms:
-            ev = evaluate_vm(vm, res.ops.get(vm.id, []), res.finops.get(vm.id, []), th, METRIC_KEY)
-            evaluations.append(ev)
-            for s in ev.skips:
+            summary.evaluated += 1
+            points = res.points.get(vm.id, [])
+            if mode == "ops":
+                hot, skips = evaluate_hot(vm, points, th, METRIC_KEY)
+                if hot is not None:
+                    rows.append(ops_row(hot, run_ctx, metric_ctx))
+                    log.warning(
+                        "ops finding", extra={"resource_id": vm.id, "observed": hot.observed}
+                    )
+            else:
+                cold, skips = evaluate_cold(vm, points, th, METRIC_KEY)
+                if cold is not None:
+                    rec = recommend_vm(cold, config.vm_skus, vm_cfg.recommend)
+                    current = await clients.pricing.monthly_price(
+                        vm.location, vm.vm_size, vm.os_type
+                    )
+                    projected = (
+                        await clients.pricing.monthly_price(vm.location, rec.target_sku, vm.os_type)
+                        if rec.target_sku
+                        else None
+                    )
+                    priced = with_pricing(rec, current, projected)
+                    rows.append(finops_row(priced, run_ctx, metric_ctx, th.windows.finops))
+            for s in skips:
                 _log_skip(s, summary)
-    summary.evaluated = len(evaluations)
+    summary.findings = len(rows)
 
-    # 4. Ops alerts with suppression
-    window = timedelta(hours=th.suppression_window_hours)
-    cache = await SuppressionCache.load(clients.suppression_store, window, now=lambda: now)
-    for ev in evaluations:
-        if ev.hot is None:
-            continue
-        summary.hot_alerts += 1
-        key = SuppressionCache.key(ev.resource.id, ev.hot.metric)
-        if not cache.should_send(key):
-            summary.hot_suppressed += 1
-            log.info("hot alert suppressed", extra={"resource_id": ev.resource.id})
-            continue
-        try:
-            await clients.notifier.send_hot(ev.hot)
-            cache.mark_sent(key)
-            log.warning(
-                "hot alert sent",
-                extra={"resource_id": ev.resource.id, "observed": ev.hot.observed},
-            )
-        except Exception:  # noqa: BLE001
-            log.exception("notifier failed", extra={"resource_id": ev.resource.id})
-    await cache.save(clients.suppression_store)
+    # 4. One write per run
+    await _write(clients.findings, OPS_TABLE if mode == "ops" else FINOPS_TABLE, rows, summary)
 
-    # 5. FinOps recommendations + pricing
-    recs: list[Recommendation] = []
-    for ev in evaluations:
-        if ev.cold is None:
-            continue
-        summary.cold_findings += 1
-        rec = recommend_vm(ev.cold, config.vm_skus, vm_cfg.recommend)
-        vm = ev.resource
-        current = await clients.pricing.monthly_price(vm.location, vm.vm_size, vm.os_type)
-        projected = (
-            await clients.pricing.monthly_price(vm.location, rec.target_sku, vm.os_type)
-            if rec.target_sku
-            else None
-        )
-        recs.append(with_pricing(rec, current, projected))
-
-    # 6. Report
-    meta = ReportMeta(
-        mg_id=settings.mg_id,
-        run_at=now,
-        currency=settings.pricing_currency,
-        tags=th.tags,
-        ignored_rg_count=summary.ignored_rg_count,
-        skips=dict(summary.skips),
-        excluded=summary.excluded,
-        chunk_failures=summary.chunk_failures,
-    )
-    summary.report_location = await clients.sink.write(
-        report_relative_path(now, settings.mg_id), render_vm_report(recs, meta)
-    )
     log.info(
         "run complete",
         extra={
             "mg_id": summary.mg_id,
+            "mode": mode,
+            "run_id": run_ctx.run_id,
             "inventory_total": summary.inventory_total,
             "evaluated": summary.evaluated,
-            "hot_alerts": summary.hot_alerts,
-            "hot_suppressed": summary.hot_suppressed,
-            "cold_findings": summary.cold_findings,
+            "findings": summary.findings,
+            "rows_written": summary.rows_written,
+            "write_failures": summary.write_failures,
             "skips": summary.skips,
+            "ignored_rg_count": summary.ignored_rg_count,
+            "excluded": [v.id for v in summary.excluded],
             "chunk_failures": summary.chunk_failures,
-            "report": summary.report_location,
+            "destinations": summary.destinations,
         },
     )
+    if summary.write_failures:
+        raise FindingsWriteFailed(f"{mode} findings write failed; see logs")
     return summary

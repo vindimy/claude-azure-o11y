@@ -16,13 +16,13 @@ windows:
     aggregation: average
     percentile: 95
     min_coverage: 0.5
-suppression_window_hours: 4
 resource_types:
   vm:
     namespace: Microsoft.Compute/virtualMachines
     metrics:
       cpu:
         metric_name: Percentage CPU
+        unit: Percent
         ops_hot: 90
         finops_cold: 20
     recommend:

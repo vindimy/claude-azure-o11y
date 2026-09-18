@@ -18,9 +18,9 @@ CONTRACT = {
     "function_app_name",
     "app_service_plan_name",
     "plan_sku",
-    "schedule_cron",
+    "ops_schedule_cron",
+    "finops_schedule_cron",
     "dry_run",
-    "ops_webhook_secret_name",
     "app_insights_name",
 }
 
