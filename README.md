@@ -4,7 +4,7 @@ Scheduled Azure Function (Python, custom container) that evaluates built-in Azur
 every subscription under a management group and produces **Ops alerts** (hot resources → Teams) and a
 **FinOps savings report** (cold resources → Markdown in blob storage). MVP scope: VM `Percentage CPU`.
 
-Design and rationale: [CLAUDE.md](CLAUDE.md) · spec: [docs/superpowers/specs](docs/superpowers/specs/) ·
+Design and rationale: [CLAUDE.md](CLAUDE.md) → [docs/agents/](docs/agents/) · spec: [docs/superpowers/specs](docs/superpowers/specs/) ·
 plan: [docs/superpowers/plans](docs/superpowers/plans/) · surprises: [docs/gotchas.md](docs/gotchas.md) ·
 UAMI roles: [docs/identity-requirements.md](docs/identity-requirements.md).
 

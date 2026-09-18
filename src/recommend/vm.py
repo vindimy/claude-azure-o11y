@@ -1,4 +1,4 @@
-"""VM downsizing rule. Pure function; contract documented in CLAUDE.md."""
+"""VM downsizing rule. Pure function; contract documented in docs/agents/recommendations.md."""
 
 from __future__ import annotations
 

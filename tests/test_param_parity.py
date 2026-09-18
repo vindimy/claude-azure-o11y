@@ -51,9 +51,9 @@ def test_deploy_sh_params_match_contract(repo_root: Path) -> None:
     assert {p.lower() for p in block.group(1).split()} == CONTRACT
 
 
-def test_claude_md_table_matches_contract(repo_root: Path) -> None:
-    md = (repo_root / "CLAUDE.md").read_text()
-    section = md.split("### Shared parameter contract", 1)[1].split("### Path A", 1)[0]
+def test_deployment_doc_table_matches_contract(repo_root: Path) -> None:
+    md = (repo_root / "docs" / "agents" / "deployment.md").read_text()
+    section = md.split("## Shared parameter contract", 1)[1].split("## GitLab CI", 1)[0]
     names: set[str] = set()
     for line in section.splitlines():
         if not line.startswith("| `"):
