@@ -147,9 +147,10 @@ scripts/vm-install.sh --param-file vm.env -- --private-key ~/.ssh/id_vm   # extr
 - **What the script does (workstation):** it packs the release with `git archive` (the full commit
   SHA is the release id, the VM's `image_tag`; `--allow-dirty` gives `dev-<sha>-<ts>`). It resolves the
   UAMI client ID and ensures the findings tables, DCE, and DCR through `scripts/lib/findings.sh`, which
-  is the same code `deploy.sh` runs. `--no-findings-infra` only looks them up. It resolves the App
-  Insights connection string, then runs `ansible/playbook.yml` against the `o11y_vm` group. The extra
-  vars travel in a 0600 temp file.
+  is the same code `deploy.sh` runs. `--no-findings-infra` only looks them up. It runs
+  `scripts/check-identity.sh` with `--skip host_storage,acr_pull` (never blocking;
+  `--skip-identity-check` turns it off), resolves the App Insights connection string, then runs
+  `ansible/playbook.yml` against the `o11y_vm` group. The extra vars travel in a 0600 temp file.
 - **What the role does (VM, `ansible/roles/o11y_alerting`):**
   1. Checks for RHEL 9 and a working IMDS token for the UAMI.
   2. Installs `python3.11` (the base image's version) and creates an `o11y` system user.

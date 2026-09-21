@@ -33,8 +33,10 @@ data_collection_rule …`. Pushing images belongs to the GitLab runner, not the 
 
 ## Self-check
 
-`scripts/check-identity.sh` (run by `deploy.sh`) verifies each YAML row with a cheap read call and lists
-the missing ones. At runtime, a thin client that gets a 403 raises `PermissionMissing("<need id>")`, and
+`scripts/check-identity.sh` (run by `deploy.sh` and `vm-install.sh`) verifies each YAML row with a cheap
+read call and lists the missing ones. A row whose scope input was not passed (`--storage-account-id`,
+`--key-vault-id`, `--acr-name`, `--law-resource-id`, `--findings-dcr-id`) is skipped, and `--skip id,id`
+marks rows a deployment style does not need, so the VM path checks only what applies to it. At runtime, a thin client that gets a 403 raises `PermissionMissing("<need id>")`, and
 `bootstrap.py` logs it with that row of `identity/role-requirements.yaml`. A half-provisioned UAMI then
 fails with a named permission instead of a generic 403 deep inside a loop. New thin clients follow the
 same pattern.

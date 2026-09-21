@@ -175,14 +175,19 @@ re-enables both timers.
 
 ### Verify the identity
 
-`scripts/check-identity.sh` currently requires storage account and Key Vault IDs, which the VM path does
-not have, so it cannot check a VM-only UAMI yet. Check the role assignments directly, and from the VM,
-repeat the token request the role makes:
+The installer runs `scripts/check-identity.sh` before the playbook and prints `ok`, `MISSING`, or `skip`
+per row of `identity/role-requirements.yaml`. `host_storage` and `acr_pull` are skipped as not needed
+on a VM; `secrets` is skipped because the VM path has no Key Vault. A `MISSING` row never stops the
+install (`--skip-identity-check` turns the check off). To run it by hand:
 
 ```bash
-PRINCIPAL=$(az identity show -g rg-o11y-test -n id-o11y-alerting --query principalId -o tsv)
-az role assignment list --assignee "$PRINCIPAL" --all --query "[].{role:roleDefinitionName, scope:scope}" -o table
+scripts/check-identity.sh --uami-name id-o11y-alerting --resource-group rg-o11y-test \
+  --management-group-id mg-prod --law-resource-id "$LAW_RESOURCE_ID" \
+  --findings-dcr-id "$(az group show -n rg-o11y-test --query id -o tsv)/providers/Microsoft.Insights/dataCollectionRules/dcr-o11y-findings" \
+  --skip host_storage,acr_pull
 ```
+
+From the VM, repeat the token request the role makes:
 
 ```bash
 CLIENT_ID=$(grep AZURE_CLIENT_ID /etc/o11y-alerting/o11y-alerting.env | cut -d'"' -f2)

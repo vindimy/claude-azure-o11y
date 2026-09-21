@@ -122,3 +122,70 @@ def test_run_once_needs_mg(repo_root: Path, bin_dir: Path) -> None:
     res = _run(repo_root, "run-once.sh", ["--mode", "ops"], _env(bin_dir))
     assert res.returncode == 2
     assert "--mg-id is required" in res.stderr
+
+
+# --- check-identity.sh -------------------------------------------------------------------------
+
+BASE = ["--uami-name", "id-x", "--resource-group", "rg-1", "--management-group-id", "mg-x"]
+
+
+def test_check_identity_vm_style_skips_rows_without_inputs(repo_root: Path, bin_dir: Path) -> None:
+    grants = ["Reader", "Monitoring Reader", "Log Analytics Reader", "Monitoring Metrics Publisher"]
+    env = _env(bin_dir, FAKE_AZ_GRANTS=json.dumps(grants))
+    args = [
+        *BASE,
+        "--law-resource-id",
+        "/law",
+        "--findings-dcr-id",
+        "/dcr",
+        "--skip",
+        "host_storage,acr_pull",
+    ]
+    res = _run(repo_root, "check-identity.sh", args, env)
+    assert res.returncode == 0, res.stdout + res.stderr
+    lines = res.stdout.splitlines()
+    assert "skip  host_storage (not needed here)" in lines
+    assert "skip  acr_pull (not needed here)" in lines
+    assert "skip  secrets (no {key_vault_id} given)" in lines
+    assert sum(line.startswith("ok    ") for line in lines) == 4
+    assert not [line for line in lines if line.startswith("MISSING")]
+
+
+def test_check_identity_reports_missing(repo_root: Path, bin_dir: Path) -> None:
+    env = _env(bin_dir, FAKE_AZ_GRANTS=json.dumps(["Reader"]))
+    res = _run(repo_root, "check-identity.sh", [*BASE, "--skip", "host_storage,acr_pull"], env)
+    assert res.returncode == 1
+    mg_scope = "/providers/Microsoft.Management/managementGroups/mg-x"
+    assert f"MISSING metrics: Monitoring Reader on {mg_scope}" in res.stdout
+    assert "skip  law (no {law_resource_id} given)" in res.stdout
+    assert "skip  findings_ingest (no {findings_dcr_id} given)" in res.stdout
+
+
+def test_check_identity_function_app_style_checks_every_row(repo_root: Path, bin_dir: Path) -> None:
+    grants = [
+        "Reader",
+        "Monitoring Reader",
+        "Log Analytics Reader",
+        "Monitoring Metrics Publisher",
+        "Storage Blob Data Owner",
+        "Key Vault Secrets User",
+        "AcrPull",
+    ]
+    env = _env(bin_dir, FAKE_AZ_GRANTS=json.dumps(grants))
+    args = [
+        *BASE,
+        "--storage-account-id",
+        "/st",
+        "--key-vault-id",
+        "/kv",
+        "--acr-name",
+        "acr1",
+        "--law-resource-id",
+        "/law",
+        "--findings-dcr-id",
+        "/dcr",
+    ]
+    res = _run(repo_root, "check-identity.sh", args, env)
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "ok    acr_pull: AcrPull on /acr/id" in res.stdout
+    assert "skip" not in res.stdout

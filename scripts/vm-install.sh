@@ -14,6 +14,7 @@
 #   --inventory          Ansible inventory with an `o11y_vm` group, instead of VM_HOST / VM_SSH_USER
 #   --no-findings-infra  only look up the findings DCE/DCR instead of creating/updating them and the
 #                        tables (use when Terraform or deploy.sh owns them)
+#   --skip-identity-check  do not run scripts/check-identity.sh (it never blocks the install)
 #   -- ...               passed to ansible-playbook, e.g. -- --private-key ~/.ssh/id_vm --limit vm-01
 set -euo pipefail
 
@@ -23,7 +24,7 @@ PARAMS=(RESOURCE_GROUP_NAME UAMI_NAME MANAGEMENT_GROUP_ID SUBSCRIPTION_IDS LAW_R
 REQUIRED=(RESOURCE_GROUP_NAME UAMI_NAME MANAGEMENT_GROUP_ID LAW_RESOURCE_ID)
 
 usage() {
-  sed -n '2,18p' "$0"
+  sed -n '2,19p' "$0"
   echo "Parameters (flags override the file):"
   for p in "${PARAMS[@]}"; do echo "  --$(echo "$p" | tr '[:upper:]_' '[:lower:]-')"; done
 }
@@ -33,7 +34,7 @@ source "$(dirname "$0")/lib/params.sh"
 # shellcheck source-path=SCRIPTDIR source=lib/findings.sh
 source "$(dirname "$0")/lib/findings.sh"
 
-PARAM_FILE=""; INVENTORY=""; ALLOW_DIRTY=false; FINDINGS_INFRA=true
+PARAM_FILE=""; INVENTORY=""; ALLOW_DIRTY=false; FINDINGS_INFRA=true; SKIP_IDENTITY_CHECK=false
 OVERRIDES=(); ANSIBLE_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,6 +42,7 @@ while [[ $# -gt 0 ]]; do
     --inventory) INVENTORY="$2"; shift 2 ;;
     --allow-dirty) ALLOW_DIRTY=true; shift ;;
     --no-findings-infra) FINDINGS_INFRA=false; shift ;;
+    --skip-identity-check) SKIP_IDENTITY_CHECK=true; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; ANSIBLE_ARGS=("$@"); break ;;
     --*) OVERRIDES+=("$(flag_to_var "$1")=$2"); shift 2 ;;
@@ -97,6 +99,14 @@ if [[ "$FINDINGS_INFRA" == true ]]; then
 else
   log "Looking up findings DCE $FINDINGS_DCE_NAME and DCR $FINDINGS_DCR_NAME"
   resolve_findings_path "$RESOURCE_GROUP_NAME"
+fi
+
+# host_storage and acr_pull only matter to a Function App; secrets is skipped for lack of a Key Vault.
+if [[ "$SKIP_IDENTITY_CHECK" != true ]]; then
+  log "Checking UAMI role assignments"
+  scripts/check-identity.sh --uami-name "$UAMI_NAME" --resource-group "$RESOURCE_GROUP_NAME" \
+    --management-group-id "$MANAGEMENT_GROUP_ID" --law-resource-id "$LAW_RESOURCE_ID" \
+    --findings-dcr-id "$DCR_ID" --skip host_storage,acr_pull || true
 fi
 
 AI_CS=""
