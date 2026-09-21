@@ -37,7 +37,7 @@ CPU only. Owner: Dmitriy (Cloud Engineering).
 
 ## Detailed instructions
 
-- [Architecture](docs/agents/architecture.md): pipeline, batch-metrics limits, resource types, scope, why not Advisor
+- [Architecture](docs/agents/architecture.md): pipeline and run-sequence diagrams, batch-metrics limits, resource types, scope, deployment styles compared, why not Advisor
 - [Thresholds](docs/agents/thresholds.md): threshold config, tag overrides, exclusion, RG ignore list
 - [Findings](docs/agents/findings.md): the two LAW tables, schema rules, ownership tags, downstream routing
 - [Recommendations](docs/agents/recommendations.md): `recommend/` rules, contract, and pricing
