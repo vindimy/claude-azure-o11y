@@ -1,7 +1,7 @@
 # Deployment
 
-Read this before touching `Dockerfile`, `scripts/deploy.sh` / `destroy.sh`, `terraform/`, or
-`.gitlab-ci.yml`, or before adding a deployment parameter.
+Read this before touching `Dockerfile`, `scripts/deploy.sh` / `destroy.sh` / `vm-install.sh`, `terraform/`,
+`ansible/`, or `.gitlab-ci.yml`, or before adding a deployment parameter.
 
 ## Container image
 
@@ -92,7 +92,9 @@ anything, and neither needs a Docker daemon.
 
 The names and meanings are identical in both paths: snake_case in Terraform, UPPER_SNAKE in the script.
 Adding a parameter means updating `variables.tf`, `deploy.env.example`, the script's `PARAMS=(…)`, and
-this table in the same PR. `tests/test_param_parity.py` diffs all four.
+this table in the same PR. Unless the parameter only makes sense for a Function App, also add it to
+Path C (`vm.env.example`, `vm-install.sh`, the role's `argument_specs.yml`, and the Path C table).
+`tests/test_param_parity.py` diffs all of them.
 
 | Parameter | Example | Notes |
 |-----------|---------|-------|
@@ -122,3 +124,71 @@ protected branch only, consumes the plan artifact).
 
 - `build` must pass before `plan`, so a plan never references a tag that doesn't exist.
 - The pipeline authenticates as the Terraform SP, not the UAMI. Its secrets are GitLab CI variables.
+
+## Path C: RHEL 9 VM (`scripts/vm-install.sh` + `ansible/`)
+
+This path runs the same `src/` pipeline on an existing RHEL 9 VM instead of a Function App. It has no
+container and no Functions host. Run it after the VM is provisioned, and re-run it to update.
+
+```bash
+cp scripts/vm.env.example vm.env                     # or reuse deploy.env; extra keys are ignored
+scripts/vm-install.sh --param-file vm.env            # installs HEAD (a clean tree is required)
+scripts/vm-install.sh --param-file vm.env --release-ref <sha|tag>   # update or roll back
+scripts/vm-install.sh --param-file vm.env -- --private-key ~/.ssh/id_vm   # extra ansible-playbook args
+```
+
+- **Assumptions:** the UAMI is already attached to the VM with every row of
+  `identity/role-requirements.yaml` except `host_storage` and `acr_pull`, which only a Function App
+  uses. Only the operator's workstation needs `az` (logged in), `ansible-core`, and SSH with sudo to
+  the VM. The VM needs outbound access to RHUI (dnf), a PyPI index (`PIP_INDEX_URL` for the approved
+  mirror), and Azure.
+- **What the script does (workstation):** it packs the release with `git archive` (the full commit
+  SHA is the release id, the VM's `image_tag`; `--allow-dirty` gives `dev-<sha>-<ts>`). It resolves the
+  UAMI client ID and ensures the findings tables, DCE, and DCR through `scripts/lib/findings.sh`, which
+  is the same code `deploy.sh` runs. `--no-findings-infra` only looks them up. It resolves the App
+  Insights connection string, then runs `ansible/playbook.yml` against the `o11y_vm` group. The extra
+  vars travel in a 0600 temp file.
+- **What the role does (VM, `ansible/roles/o11y_alerting`):**
+  1. Checks for RHEL 9 and a working IMDS token for the UAMI.
+  2. Installs `python3.11` (the base image's version) and creates an `o11y` system user.
+  3. Unpacks the release to `/opt/o11y-alerting/releases/<id>/` and gives it its own venv
+     (`requirements-vm.txt`).
+  4. Smoke-tests the import and this MG's threshold config, then switches the `current` symlink. A
+     broken release never goes live.
+  5. Keeps 3 releases.
+- **Runtime:** `/etc/o11y-alerting/o11y-alerting.env` (0640) holds the same settings as the Function
+  App. There is one `o11y-alerting-<mode>.timer` per run mode, which starts
+  `o11y-alerting@<mode>.service` (oneshot, hardened, `TimeoutStartSec` = the 30-minute
+  `functionTimeout`). A timer never overlaps its own run, and a run missed while the VM was off is
+  skipped (`Persistent=false`, like `run_on_startup=False`).
+- **Schedules:** `ops_schedule_cron` / `finops_schedule_cron` keep their NCRONTAB (UTC) meaning. The
+  role's `ncrontab_to_oncalendar` filter converts them to `OnCalendar`, and `systemd-analyze calendar`
+  validates the result. An expression that restricts both day-of-month and day-of-week is rejected:
+  cron ORs those two fields, and systemd cannot express that.
+- **Logs:** JSON to journald (`journalctl -u 'o11y-alerting@*'`). With `app_insights_name` set, the app
+  also exports them through `azure-monitor-opentelemetry`; it skips that step under the Functions
+  host, which exports logs itself.
+- **Dry run:** findings land in `/var/lib/o11y-alerting/out/findings/*.jsonl`.
+- No uninstall script yet: stop and disable the timers, then remove `/opt/o11y-alerting`,
+  `/etc/o11y-alerting`, and the units. The findings path belongs to `destroy.sh` / Terraform.
+
+### Path C parameters
+
+Contract parameters keep their names and meanings. `vm-install.sh` uses UPPER_SNAKE (in `vm.env` or as
+flags), and the role uses snake_case. The Function-App-only parameters (`location`,
+`storage_account_name`, `key_vault_name`, `acr_name`, `image_name`, `image_tag`, `function_app_name`,
+`app_service_plan_name`, `plan_sku`) are ignored.
+
+| Parameter | Example | Notes |
+|-----------|---------|-------|
+| `resource_group_name` | `rg-o11y-test` | holds the UAMI and the findings DCE/DCR |
+| `uami_name` | `id-o11y-alerting` | resolved to its client ID (`AZURE_CLIENT_ID`); must be attached to the VM |
+| `management_group_id` | `mg-prod` | scope; the smoke test validates `config/` with this MG's overrides |
+| `subscription_ids` | `` | as in the contract |
+| `law_resource_id` | `/subscriptions/…/workspaces/law-central` | **required** |
+| `ops_schedule_cron`, `finops_schedule_cron` | `0 */15 * * * *` | NCRONTAB (UTC) → systemd timers |
+| `dry_run` | `false` | `true` or `false` |
+| `app_insights_name` | `` | optional; enables the OpenTelemetry export |
+| `vm_host`, `vm_ssh_user` | `10.0.0.4`, `azureuser` | VM only; or `--inventory` with an `o11y_vm` group |
+| `release_ref` | `a1b2c3d` | VM only; commit, tag, or branch (default `HEAD`), recorded as the full SHA |
+| `pip_index_url` | `https://artifactory…/simple` | VM only; approved PyPI mirror |

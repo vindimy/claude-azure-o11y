@@ -1,0 +1,159 @@
+# Install or update: each release_ref gets its own directory and venv, then `current` is switched to it.
+# Re-running with a new release_ref is the update; re-running with the same one only reconciles config.
+- name: Check the target is RHEL 9
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == "RedHat"
+      - ansible_facts.distribution_major_version == "9"
+    fail_msg: "expected RHEL 9, got {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}"
+
+- name: Check findings ingestion settings
+  ansible.builtin.assert:
+    that: dry_run | bool or (logs_ingestion_endpoint | length > 0 and findings_dcr_immutable_id | length > 0)
+    fail_msg: logs_ingestion_endpoint and findings_dcr_immutable_id are required when dry_run is false
+
+- name: Convert the NCRONTAB schedules to systemd OnCalendar
+  ansible.builtin.set_fact:
+    o11y_release_dir: "{{ o11y_install_dir }}/releases/{{ release_ref }}"
+    o11y_calendars:
+      ops: "{{ ops_schedule_cron | ncrontab_to_oncalendar }}"
+      finops: "{{ finops_schedule_cron | ncrontab_to_oncalendar }}"
+
+- name: Install Python and archive tools
+  ansible.builtin.dnf:
+    name: ["{{ o11y_python }}", "{{ o11y_python }}-pip", tar, gzip]
+    state: present
+
+- name: Create the service group
+  ansible.builtin.group:
+    name: "{{ o11y_user }}"
+    system: true
+
+- name: Create the service user
+  ansible.builtin.user:
+    name: "{{ o11y_user }}"
+    group: "{{ o11y_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: "{{ o11y_install_dir }}"
+    create_home: false
+
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ o11y_install_dir }}", group: root, mode: "0755"}
+    - {path: "{{ o11y_install_dir }}/releases", group: root, mode: "0755"}
+    - {path: "{{ o11y_release_dir }}", group: root, mode: "0755"}
+    - {path: "{{ o11y_config_dir }}", group: "{{ o11y_user }}", mode: "0750"}
+
+# Fails fast when the UAMI is not attached to this VM, instead of on the first timer run.
+- name: Check the UAMI can get a token from IMDS
+  ansible.builtin.uri:
+    url: "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/&client_id={{ uami_client_id }}"
+    headers: {Metadata: "true"}
+    use_proxy: false
+    return_content: false
+  no_log: true
+
+- name: Unpack release {{ release_ref }}
+  ansible.builtin.unarchive:
+    src: "{{ release_bundle }}"
+    dest: "{{ o11y_release_dir }}"
+    owner: root
+    group: root
+    creates: "{{ o11y_release_dir }}/src/bootstrap.py"
+
+- name: Install Python dependencies into the release venv
+  ansible.builtin.pip:
+    requirements: "{{ o11y_release_dir }}/requirements-vm.txt"
+    virtualenv: "{{ o11y_release_dir }}/venv"
+    virtualenv_command: "{{ o11y_python }} -m venv"
+    extra_args: "{{ ('--index-url ' ~ pip_index_url) if pip_index_url else omit }}"
+
+# Import the entry point and load this MG's threshold config before switching `current`,
+# so a broken release or an invalid config/ never goes live.
+- name: Smoke-test the release
+  ansible.builtin.command:
+    cmd: >-
+      {{ o11y_release_dir }}/venv/bin/python -c
+      "import sys; from pathlib import Path; sys.path.insert(0, 'src');
+      import bootstrap; from config.loader import load_config;
+      load_config(Path('config'), sys.argv[1])" {{ management_group_id | quote }}
+    chdir: "{{ o11y_release_dir }}"
+  changed_when: false
+
+- name: Validate the timer schedules
+  ansible.builtin.command: systemd-analyze calendar {{ item.value | quote }}
+  loop: "{{ o11y_calendars | dict2items }}"
+  loop_control: {label: "{{ item.key }}: {{ item.value }}"}
+  changed_when: false
+
+- name: Write the runtime settings
+  ansible.builtin.template:
+    src: o11y-alerting.env.j2
+    dest: "{{ o11y_config_dir }}/o11y-alerting.env"
+    owner: root
+    group: "{{ o11y_user }}"
+    mode: "0640"
+  no_log: "{{ applicationinsights_connection_string | length > 0 }}"
+
+- name: Switch current to release {{ release_ref }}
+  ansible.builtin.file:
+    src: "{{ o11y_release_dir }}"
+    dest: "{{ o11y_install_dir }}/current"
+    state: link
+    force: true
+
+- name: Install the run service
+  ansible.builtin.template:
+    src: o11y-alerting@.service.j2
+    dest: /etc/systemd/system/o11y-alerting@.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the timers
+  ansible.builtin.template:
+    src: o11y-alerting-mode.timer.j2
+    dest: /etc/systemd/system/o11y-alerting-{{ item }}.timer
+    mode: "0644"
+  loop: "{{ o11y_modes }}"
+  notify: Reload systemd
+
+- name: Apply unit changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the timers
+  ansible.builtin.systemd_service:
+    name: o11y-alerting-{{ item }}.timer
+    enabled: true
+    state: started
+  loop: "{{ o11y_modes }}"
+
+- name: List installed releases
+  ansible.builtin.find:
+    paths: "{{ o11y_install_dir }}/releases"
+    file_type: directory
+  register: o11y_releases
+
+- name: Remove old releases
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: >-
+    {{ (o11y_releases.files | sort(attribute='mtime', reverse=true))[o11y_keep_releases:]
+       | rejectattr('path', 'equalto', o11y_release_dir) | list }}
+  loop_control: {label: "{{ item.path }}"}
+
+- name: Show the next runs
+  ansible.builtin.command: systemctl list-timers o11y-alerting-*.timer --no-pager  # noqa: command-instead-of-module
+  register: o11y_timers
+  changed_when: false
+
+- name: Report
+  ansible.builtin.debug:
+    msg: "{{ ['Release ' ~ release_ref ~ ' is current.'] + o11y_timers.stdout_lines }}"

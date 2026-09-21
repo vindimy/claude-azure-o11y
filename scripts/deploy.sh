@@ -7,11 +7,7 @@ PARAMS=(RESOURCE_GROUP_NAME LOCATION UAMI_NAME STORAGE_ACCOUNT_NAME KEY_VAULT_NA
         PLAN_SKU OPS_SCHEDULE_CRON FINOPS_SCHEDULE_CRON DRY_RUN APP_INSIGHTS_NAME)
 REQUIRED=(RESOURCE_GROUP_NAME LOCATION UAMI_NAME STORAGE_ACCOUNT_NAME KEY_VAULT_NAME MANAGEMENT_GROUP_ID
           LAW_RESOURCE_ID ACR_NAME IMAGE_TAG)
-# Same names as terraform/module-azure-o11y/locals.tf.
-FINDINGS_DCE_NAME=dce-o11y-findings
-FINDINGS_DCR_NAME=dcr-o11y-findings
 SCHEMA="$(dirname "$0")/../schema/findings-tables.json"
-ARM=https://management.azure.com
 
 usage() {
   cat <<USAGE
@@ -25,6 +21,8 @@ PARAM_FILE=""
 SKIP_IDENTITY_CHECK=false
 # shellcheck source-path=SCRIPTDIR source=lib/params.sh
 source "$(dirname "$0")/lib/params.sh"
+# shellcheck source-path=SCRIPTDIR source=lib/findings.sh
+source "$(dirname "$0")/lib/findings.sh"
 OVERRIDES=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -64,57 +62,9 @@ UAMI_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query id 
 UAMI_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query clientId -o tsv)
 STORAGE_ID=$(az storage account show -g "$RESOURCE_GROUP_NAME" -n "$STORAGE_ACCOUNT_NAME" --query id -o tsv)
 KV_ID=$(az keyvault show -n "$KEY_VAULT_NAME" --query id -o tsv)
-LAW_LOCATION=$(az resource show --ids "$LAW_RESOURCE_ID" --query location -o tsv)
-[[ -n "$UAMI_ID" && -n "$STORAGE_ID" && -n "$KV_ID" && -n "$LAW_LOCATION" ]]
+[[ -n "$UAMI_ID" && -n "$STORAGE_ID" && -n "$KV_ID" ]]
 
-# Findings: custom tables in the LAW, plus a DCE and DCR in the LAW's region. Bodies are rendered from
-# schema/findings-tables.json, the same file the Terraform module reads. API versions are pinned.
-log "Ensuring findings tables in $LAW_RESOURCE_ID"
-TABLES=$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["tables"]))' "$SCHEMA")
-for t in $TABLES; do
-  python3 - "$SCHEMA" "$t" >"$TMP/$t.json" <<'PY'
-import json, sys
-spec = json.load(open(sys.argv[1]))["tables"][sys.argv[2]]
-cols = [{"name": c["name"], "type": "dateTime" if c["type"] == "datetime" else c["type"],
-         "description": c["description"]} for c in spec["columns"]]
-print(json.dumps({"properties": {"plan": "Analytics", "schema": {
-    "name": sys.argv[2], "description": spec["description"], "columns": cols}}}))
-PY
-  TABLE_URL="$ARM$LAW_RESOURCE_ID/tables/$t?api-version=2022-10-01"
-  az rest --method put --url "$TABLE_URL" --body "@$TMP/$t.json" -o none
-  # Table PUT is asynchronous; the DCR rejects output streams whose table is not provisioned yet.
-  for _ in $(seq 60); do
-    state=$(az rest --method get --url "$TABLE_URL" --query properties.provisioningState -o tsv)
-    [[ "$state" == Succeeded ]] && break
-    sleep 5
-  done
-  [[ "$state" == Succeeded ]] || { echo "table $t not provisioned (state: $state)" >&2; exit 4; }
-done
-
-log "Ensuring DCE $FINDINGS_DCE_NAME and DCR $FINDINGS_DCR_NAME ($LAW_LOCATION)"
-RG_ID=$(az group show -n "$RESOURCE_GROUP_NAME" --query id -o tsv)
-DCE_ID="$RG_ID/providers/Microsoft.Insights/dataCollectionEndpoints/$FINDINGS_DCE_NAME"
-DCR_ID="$RG_ID/providers/Microsoft.Insights/dataCollectionRules/$FINDINGS_DCR_NAME"
-az rest --method put --url "$ARM$DCE_ID?api-version=2023-03-11" -o none \
-  --body "{\"location\": \"$LAW_LOCATION\", \"tags\": {\"workload\": \"o11y-alerting\"}, \"properties\": {\"networkAcls\": {\"publicNetworkAccess\": \"Enabled\"}}}"
-python3 - "$SCHEMA" "$LAW_LOCATION" "$DCE_ID" "$LAW_RESOURCE_ID" >"$TMP/dcr.json" <<'PY'
-import json, sys
-schema, location, dce_id, law_id = sys.argv[1:5]
-tables = json.load(open(schema))["tables"]
-print(json.dumps({"location": location, "tags": {"workload": "o11y-alerting"}, "properties": {
-    "dataCollectionEndpointId": dce_id,
-    "streamDeclarations": {f"Custom-{t}": {"columns": [{"name": c["name"], "type": c["type"]}
-                                                       for c in spec["columns"]]}
-                           for t, spec in tables.items()},
-    "destinations": {"logAnalytics": [{"name": "law", "workspaceResourceId": law_id}]},
-    "dataFlows": [{"streams": [f"Custom-{t}"], "destinations": ["law"], "transformKql": "source",
-                   "outputStream": f"Custom-{t}"} for t in tables],
-}}))
-PY
-az rest --method put --url "$ARM$DCR_ID?api-version=2023-03-11" --body "@$TMP/dcr.json" -o none
-LOGS_INGESTION_ENDPOINT=$(az rest --method get --url "$ARM$DCE_ID?api-version=2023-03-11" --query properties.logsIngestion.endpoint -o tsv)
-FINDINGS_DCR_IMMUTABLE_ID=$(az rest --method get --url "$ARM$DCR_ID?api-version=2023-03-11" --query properties.immutableId -o tsv)
-[[ -n "$LOGS_INGESTION_ENDPOINT" && -n "$FINDINGS_DCR_IMMUTABLE_ID" ]]
+ensure_findings_path "$RESOURCE_GROUP_NAME" "$LAW_RESOURCE_ID" "$SCHEMA" "$TMP"
 
 log "Ensuring plan $APP_SERVICE_PLAN_NAME ($PLAN_SKU)"
 if ! az functionapp plan show -g "$RESOURCE_GROUP_NAME" -n "$APP_SERVICE_PLAN_NAME" >/dev/null 2>&1; then

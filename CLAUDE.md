@@ -18,6 +18,7 @@ MVP is VM CPU only. Owner: Dmitriy (Cloud Engineering).
 - `make identity-doc`: regenerate `docs/identity-requirements.md` from `identity/role-requirements.yaml`
 - `scripts/run-once.sh --mg-id <mg> --subscription-ids <id> [--mode ops|finops|all]`: local dry run; findings land in `./out/findings/*.jsonl`
 - `scripts/build-image.sh --param-file deploy.env [--deploy]` (or `make image`): manual image build + ACR push
+- `scripts/vm-install.sh --param-file vm.env [--release-ref <sha>]` (or `make vm-install`): install/update on a RHEL 9 VM via Ansible
 
 ## Hard rules
 
@@ -41,7 +42,7 @@ MVP is VM CPU only. Owner: Dmitriy (Cloud Engineering).
 - [Findings](docs/agents/findings.md): the two LAW tables, schema rules, ownership tags, downstream routing
 - [Recommendations](docs/agents/recommendations.md): `recommend/` rules and contract
 - [Identity](docs/agents/identity.md): UAMI, the permission workflow, self-check, secrets
-- [Deployment](docs/agents/deployment.md): image build/push (CI and manual), parameter contract, `deploy.sh` vs Terraform, CI
+- [Deployment](docs/agents/deployment.md): image build/push (CI and manual), parameter contract, `deploy.sh` vs Terraform vs RHEL VM (Ansible), CI
 - [Roadmap](docs/agents/roadmap.md): the next resource types, steps for adding one, backlog ADRs
 
 ## Agent skills

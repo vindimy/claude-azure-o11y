@@ -1,0 +1,8 @@
+# Install or update the o11y alerting runner on RHEL 9 VMs in the `o11y_vm` group.
+# Normally run through scripts/vm-install.sh, which builds the release bundle and resolves the Azure-side
+# values (UAMI client ID, findings DCE/DCR, App Insights). See docs/agents/deployment.md, Path C.
+- name: O11y alerting on RHEL 9
+  hosts: o11y_vm
+  become: true
+  roles:
+    - o11y_alerting

@@ -1,0 +1,29 @@
+# Validated by Ansible before the role runs. Contract parameters keep the names used by
+# terraform/module-azure-o11y and scripts/deploy.sh (tests/test_param_parity.py). The "resolved" ones are
+# filled in by scripts/vm-install.sh from az; pass them yourself when calling the playbook directly.
+argument_specs:
+  main:
+    short_description: Install or update the o11y alerting runner on a RHEL 9 VM
+    options:
+      # Contract parameters
+      management_group_id: {type: str, required: true, description: Scope of iteration; selects config/thresholds/<id>.yaml}
+      subscription_ids: {type: str, default: "", description: Optional comma list; replaces the MG as scope}
+      law_resource_id: {type: str, required: true, description: LAW holding the findings tables}
+      ops_schedule_cron: {type: str, default: "0 */15 * * * *", description: NCRONTAB (UTC) for the Ops run}
+      finops_schedule_cron: {type: str, default: "0 0 6 * * *", description: NCRONTAB (UTC) for the FinOps run}
+      dry_run: {type: bool, default: false, description: Write findings as JSON lines under /var/lib/o11y-alerting/out}
+      release_ref: {type: str, required: true, description: Commit SHA (or dev-* id) of the release bundle; the VM's image_tag}
+      pip_index_url: {type: str, default: "", description: Approved PyPI mirror; empty uses pip's default}
+      # Resolved by scripts/vm-install.sh
+      release_bundle: {type: path, required: true, description: Local path to the git-archive tarball on the control node}
+      uami_client_id: {type: str, required: true, description: Client ID of the UAMI attached to the VM}
+      logs_ingestion_endpoint: {type: str, default: "", description: Findings DCE logs-ingestion endpoint; required unless dry_run}
+      findings_dcr_immutable_id: {type: str, default: "", description: Findings DCR immutable ID; required unless dry_run}
+      applicationinsights_connection_string: {type: str, default: "", no_log: true, description: From app_insights_name; empty disables export}
+      # Layout
+      o11y_install_dir: {type: path, default: /opt/o11y-alerting}
+      o11y_config_dir: {type: path, default: /etc/o11y-alerting}
+      o11y_user: {type: str, default: o11y}
+      o11y_python: {type: str, default: python3.11, description: Matches the Functions base image}
+      o11y_keep_releases: {type: int, default: 3}
+      o11y_timeout_sec: {type: int, default: 1800, description: Matches host.json functionTimeout}

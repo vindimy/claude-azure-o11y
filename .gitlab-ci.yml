@@ -14,8 +14,8 @@ lint:python:
   stage: lint
   extends: .python
   script:
-    - ruff check src tests scripts
-    - ruff format --check src tests scripts
+    - ruff check src tests scripts ansible
+    - ruff format --check src tests scripts ansible
     - mypy src
     - pytest
 

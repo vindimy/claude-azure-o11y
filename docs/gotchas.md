@@ -59,3 +59,10 @@ start it. `scripts/build-image.sh` always passes `--platform linux/amd64`.
 After `Monitoring Metrics Publisher` is granted on the DCR, uploads can return 403 for up to about 30
 minutes. The first rows in a new table can take several minutes to become queryable.
 `azure-monitor-ingestion` 1.1 splits uploads into ≤1 MB gzip chunks and raises on the first failed chunk.
+
+## systemd: RuntimeMaxSec does nothing for oneshot units; OnCalendar ANDs day and weekday (2026-09-21)
+
+The VM runner (`o11y-alerting@.service`) is `Type=oneshot`, so its time limit is `TimeoutStartSec`, not
+`RuntimeMaxSec`. NCRONTAB, like cron, ORs a restricted day-of-month with a restricted day-of-week;
+`OnCalendar` ANDs them. The `ncrontab_to_oncalendar` filter rejects such expressions instead of
+silently changing the schedule. Timers use `UTC` explicitly because NCRONTAB on Functions is UTC.

@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# {{ item }}: {{ lookup('vars', item ~ '_schedule_cron') }} (NCRONTAB, UTC)
+[Unit]
+Description=Schedule the o11y alerting {{ item }} run
+
+[Timer]
+OnCalendar={{ o11y_calendars[item] }}
+AccuracySec=1s
+# Like run_on_startup=False: a run missed while the VM was off is not caught up.
+Persistent=false
+Unit=o11y-alerting@{{ item }}.service
+
+[Install]
+WantedBy=timers.target

@@ -37,6 +37,10 @@ Both deployment paths take the same parameters and only reference that tag.
   `scripts/deploy.sh --param-file deploy.env --image-tag <sha>`. Re-run with a new tag to deploy.
 - **Path B (CI, Terraform):** `terraform/module-azure-o11y`, exercised by `terraform/examples/test-rg`.
   A new `image_tag` is the deploy; the pipeline's `apply` stage is manual.
+- **Path C (RHEL 9 VM, Ansible):** after the VM is provisioned with the UAMI attached,
+  `cp scripts/vm.env.example vm.env`, fill it in, then `scripts/vm-install.sh --param-file vm.env`.
+  The same code runs from systemd timers. Re-run with `--release-ref <sha>` to update
+  ([details](docs/agents/deployment.md#path-c-rhel-9-vm-scriptsvm-installsh--ansible)).
 
 The runtime identity is an existing user-assigned managed identity. What it must be granted is listed in
 `identity/role-requirements.yaml`; `scripts/check-identity.sh` verifies it. `terraform/examples/iam-uami`

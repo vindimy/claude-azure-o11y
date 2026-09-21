@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -26,13 +28,37 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+_exporting = False
+
+
 def configure_logging(level: str = "INFO") -> None:
     root = logging.getLogger()
     root.setLevel(level)
     for h in list(root.handlers):
-        root.removeHandler(h)
+        if not type(h).__module__.startswith("opentelemetry"):
+            root.removeHandler(h)
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     root.addHandler(handler)
     for noisy in ("azure", "httpx", "httpcore"):
         logging.getLogger(noisy).setLevel("WARNING")
+    _export_to_app_insights()
+
+
+def _export_to_app_insights() -> None:
+    """Outside the Functions host (the RHEL VM install), ship logs to App Insights ourselves."""
+    global _exporting
+    if _exporting or os.environ.get("FUNCTIONS_WORKER_RUNTIME"):
+        return
+    if not os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+        return
+    try:
+        otel = importlib.import_module("azure.monitor.opentelemetry")
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "APPLICATIONINSIGHTS_CONNECTION_STRING is set but azure-monitor-opentelemetry is not "
+            "installed (requirements-vm.txt); logs stay on stdout"
+        )
+        return
+    otel.configure_azure_monitor(logger_name="")
+    _exporting = True

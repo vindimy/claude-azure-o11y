@@ -1,0 +1,17 @@
+# Defaults mirror meta/argument_specs.yml and the Function App defaults.
+subscription_ids: ""
+ops_schedule_cron: "0 */15 * * * *"
+finops_schedule_cron: "0 0 6 * * *"
+dry_run: false
+pip_index_url: ""
+logs_ingestion_endpoint: ""
+findings_dcr_immutable_id: ""
+applicationinsights_connection_string: ""
+
+o11y_install_dir: /opt/o11y-alerting
+o11y_config_dir: /etc/o11y-alerting
+o11y_user: o11y
+o11y_python: python3.11
+o11y_keep_releases: 3
+o11y_timeout_sec: 1800
+o11y_modes: [ops, finops]

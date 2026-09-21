@@ -1,0 +1,4 @@
+# RHEL 9 VM install (ansible/). The Functions host ships logs to App Insights itself; on the VM the
+# app does it through OpenTelemetry when APPLICATIONINSIGHTS_CONNECTION_STRING is set.
+-r requirements.txt
+azure-monitor-opentelemetry>=1.6,<2

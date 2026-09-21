@@ -1,6 +1,7 @@
-"""Local entry: `python src/run_local.py` (DRY_RUN defaults to true here).
+"""Local and VM entry: `python src/run_local.py` (DRY_RUN defaults to true when unset).
 
-RUN_MODES picks which runs to do, in order (default "ops,finops").
+RUN_MODES picks which runs to do, in order (default "ops,finops"). On the RHEL VM install, each
+systemd timer starts it with one mode and the settings from /etc/o11y-alerting/o11y-alerting.env.
 """
 
 from __future__ import annotations

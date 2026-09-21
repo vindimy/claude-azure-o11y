@@ -5,8 +5,9 @@ Read this before adding an Azure call, a secret, or anything else that needs a p
 ## The UAMI
 
 - The runtime identity is one user-assigned managed identity. The bank's IAM automation repo creates and
-  manages it. This repo cannot create identities or role assignments. Both deployment paths take the
-  UAMI **name** and only attach it to the Function App.
+  manages it. This repo cannot create identities or role assignments. The Function App paths take the
+  UAMI **name** and only attach it to the Function App. The RHEL VM path (Path C) expects it already
+  attached to the VM; it resolves the name to a client ID and needs neither `host_storage` nor `acr_pull`.
 - `terraform/examples/iam-uami` is a **reference** for the IAM repo: a UAMI plus one role assignment per
   row of `identity/role-requirements.yaml`, read from the YAML. Nothing here applies it, and
   `module-azure-o11y` must never call it.

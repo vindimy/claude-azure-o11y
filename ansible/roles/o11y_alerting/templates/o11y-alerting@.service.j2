@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# One run of the pipeline; %i is the run mode (ops or finops). Started by o11y-alerting-<mode>.timer.
+# A timer never starts a second copy while one is still running, like the Functions timer singleton.
+[Unit]
+Description=o11y alerting %i run
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ o11y_user }}
+Group={{ o11y_user }}
+WorkingDirectory={{ o11y_install_dir }}/current
+EnvironmentFile={{ o11y_config_dir }}/o11y-alerting.env
+Environment=RUN_MODES=%i
+ExecStart={{ o11y_install_dir }}/current/venv/bin/python src/run_local.py
+# RuntimeMaxSec has no effect on oneshot units; this is the functionTimeout equivalent.
+TimeoutStartSec={{ o11y_timeout_sec }}
+StateDirectory=o11y-alerting
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

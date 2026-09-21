@@ -1,0 +1,4 @@
+# Role variables keep the shared parameter-contract names (management_group_id, dry_run, ...) so they match
+# Terraform and deploy.sh (tests/test_param_parity.py); a role prefix would break that parity.
+skip_list:
+  - var-naming[no-role-prefix]
