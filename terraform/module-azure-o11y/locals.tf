@@ -14,8 +14,8 @@ locals {
     {
       FUNCTIONS_WORKER_RUNTIME            = "python"
       WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
-      AzureWebJobsStorage__clientId       = data.azurerm_user_assigned_identity.this.client_id
-      AZURE_CLIENT_ID                     = data.azurerm_user_assigned_identity.this.client_id
+      AzureWebJobsStorage__clientId       = data.azapi_resource.uami.output.properties.clientId
+      AZURE_CLIENT_ID                     = data.azapi_resource.uami.output.properties.clientId
       MG_ID                               = var.management_group_id
       SUBSCRIPTION_IDS                    = var.subscription_ids
       LAW_RESOURCE_ID                     = var.law_resource_id

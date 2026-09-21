@@ -22,13 +22,13 @@ resource "azurerm_linux_function_app" "this" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [data.azurerm_user_assigned_identity.this.id]
+    identity_ids = [var.uami_resource_id]
   }
-  key_vault_reference_identity_id = data.azurerm_user_assigned_identity.this.id
+  key_vault_reference_identity_id = var.uami_resource_id
 
   site_config {
     container_registry_use_managed_identity       = true
-    container_registry_managed_identity_client_id = data.azurerm_user_assigned_identity.this.client_id
+    container_registry_managed_identity_client_id = data.azapi_resource.uami.output.properties.clientId
     application_stack {
       docker {
         registry_url = local.registry_url

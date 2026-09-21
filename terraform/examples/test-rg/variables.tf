@@ -8,8 +8,8 @@ variable "location" {
   type        = string
 }
 
-variable "uami_name" {
-  description = "Existing user-assigned managed identity (created by the IAM repo), in the resource group."
+variable "uami_resource_id" {
+  description = "Resource ID of the existing user-assigned managed identity (created by the IAM repo); may be in another RG or subscription."
   type        = string
 }
 

@@ -1,7 +1,7 @@
 # Same keys and meanings as scripts/deploy.env.example. Copy to terraform.tfvars (git-ignored).
 resource_group_name   = "rg-o11y-test"
 location              = "centralus"
-uami_name             = "id-o11y-alerting"
+uami_resource_id      = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-o11y-alerting"
 storage_account_name  = "sto11yalerting"
 key_vault_name        = "kv-o11y-alerting"
 management_group_id   = "mg-prod"

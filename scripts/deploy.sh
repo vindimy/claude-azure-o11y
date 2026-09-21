@@ -2,10 +2,10 @@
 # Deploy the whole o11y alerting stack with the az CLI. Idempotent. No Terraform, no docker.
 set -euo pipefail
 
-PARAMS=(RESOURCE_GROUP_NAME LOCATION UAMI_NAME STORAGE_ACCOUNT_NAME KEY_VAULT_NAME MANAGEMENT_GROUP_ID
+PARAMS=(RESOURCE_GROUP_NAME LOCATION UAMI_RESOURCE_ID STORAGE_ACCOUNT_NAME KEY_VAULT_NAME MANAGEMENT_GROUP_ID
         SUBSCRIPTION_IDS LAW_RESOURCE_ID ACR_NAME IMAGE_NAME IMAGE_TAG FUNCTION_APP_NAME APP_SERVICE_PLAN_NAME
         PLAN_SKU OPS_SCHEDULE_CRON FINOPS_SCHEDULE_CRON DRY_RUN APP_INSIGHTS_NAME)
-REQUIRED=(RESOURCE_GROUP_NAME LOCATION UAMI_NAME STORAGE_ACCOUNT_NAME KEY_VAULT_NAME MANAGEMENT_GROUP_ID
+REQUIRED=(RESOURCE_GROUP_NAME LOCATION UAMI_RESOURCE_ID STORAGE_ACCOUNT_NAME KEY_VAULT_NAME MANAGEMENT_GROUP_ID
           LAW_RESOURCE_ID ACR_NAME IMAGE_TAG)
 SCHEMA="$(dirname "$0")/../schema/findings-tables.json"
 
@@ -58,8 +58,9 @@ ACR_LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
 IMAGE_REF="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
 
 log "Resolving existing resources"
-UAMI_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query id -o tsv)
-UAMI_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query clientId -o tsv)
+# The UAMI comes from the IAM repo and may live in another RG or subscription, so it is read by ID.
+UAMI_ID=$(az identity show --ids "$UAMI_RESOURCE_ID" --query id -o tsv)
+UAMI_CLIENT_ID=$(az identity show --ids "$UAMI_RESOURCE_ID" --query clientId -o tsv)
 STORAGE_ID=$(az storage account show -g "$RESOURCE_GROUP_NAME" -n "$STORAGE_ACCOUNT_NAME" --query id -o tsv)
 KV_ID=$(az keyvault show -n "$KEY_VAULT_NAME" --query id -o tsv)
 [[ -n "$UAMI_ID" && -n "$STORAGE_ID" && -n "$KV_ID" ]]
@@ -118,7 +119,7 @@ az functionapp config appsettings delete -g "$RESOURCE_GROUP_NAME" -n "$FUNCTION
 
 if [[ "$SKIP_IDENTITY_CHECK" != true ]]; then
   log "Checking UAMI role assignments"
-  "$(dirname "$0")/check-identity.sh" --uami-name "$UAMI_NAME" --resource-group "$RESOURCE_GROUP_NAME" \
+  "$(dirname "$0")/check-identity.sh" --uami-resource-id "$UAMI_ID" \
     --management-group-id "$MANAGEMENT_GROUP_ID" --storage-account-id "$STORAGE_ID" --key-vault-id "$KV_ID" \
     --acr-name "$ACR_NAME" --law-resource-id "$LAW_RESOURCE_ID" --findings-dcr-id "$DCR_ID" || true
 fi

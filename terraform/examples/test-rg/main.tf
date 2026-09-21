@@ -3,7 +3,7 @@ module "o11y" {
 
   resource_group_name   = var.resource_group_name
   location              = var.location
-  uami_name             = var.uami_name
+  uami_resource_id      = var.uami_resource_id
   storage_account_name  = var.storage_account_name
   key_vault_name        = var.key_vault_name
   management_group_id   = var.management_group_id

@@ -13,15 +13,14 @@ Provisioning the VM is outside this repo. Before the first install it must have:
 - RHEL 9 (the role asserts this) and outbound access to RHUI for `dnf`, a PyPI index
   (the approved mirror, via `pip_index_url`), Azure management and ingestion endpoints, and
   `prices.azure.com`.
-- The UAMI `id-o11y-alerting` **attached** as a user-assigned identity. The role checks that the
+- The UAMI (`UAMI_RESOURCE_ID`) **attached** as a user-assigned identity. The role checks that the
   Instance Metadata Service issues a token for it and stops if not.
 - An admin user reachable over SSH from your workstation with passwordless sudo.
 
 Attach the identity if it is not:
 
 ```bash
-UAMI_ID=$(az identity show -g rg-o11y-test -n id-o11y-alerting --query id -o tsv)
-az vm identity assign -g rg-o11y-vm -n vm-o11y-01 --identities "$UAMI_ID"
+az vm identity assign -g rg-o11y-vm -n vm-o11y-01 --identities "$UAMI_RESOURCE_ID"
 ```
 
 The UAMI needs every row of `identity/role-requirements.yaml` except `host_storage` and `acr_pull`,
@@ -30,8 +29,9 @@ style ([order of operations](README.md#first-time-order-of-operations)).
 
 ### Other Azure resources
 
-Existing resource group (holds the UAMI and receives the findings DCE and DCR), Log Analytics workspace,
-and optionally an App Insights component in the same RG. No storage account, Key Vault, or ACR.
+Existing resource group (receives the findings DCE and DCR), Log Analytics workspace, and optionally an
+App Insights component in the same RG. The UAMI may be in any RG or subscription. No storage account,
+Key Vault, or ACR.
 
 ### Your workstation
 
@@ -43,7 +43,7 @@ and optionally an App Insights component in the same RG. No storage account, Key
 
 ```bash
 cp scripts/vm.env.example vm.env
-$EDITOR vm.env              # RESOURCE_GROUP_NAME UAMI_NAME MANAGEMENT_GROUP_ID LAW_RESOURCE_ID VM_HOST VM_SSH_USER
+$EDITOR vm.env              # RESOURCE_GROUP_NAME UAMI_RESOURCE_ID MANAGEMENT_GROUP_ID LAW_RESOURCE_ID VM_HOST VM_SSH_USER
 scripts/vm-install.sh --param-file vm.env
 ```
 
@@ -181,7 +181,7 @@ on a VM; `secrets` is skipped because the VM path has no Key Vault. A `MISSING` 
 install (`--skip-identity-check` turns the check off). To run it by hand:
 
 ```bash
-scripts/check-identity.sh --uami-name id-o11y-alerting --resource-group rg-o11y-test \
+scripts/check-identity.sh --uami-resource-id "$UAMI_RESOURCE_ID" \
   --management-group-id mg-prod --law-resource-id "$LAW_RESOURCE_ID" \
   --findings-dcr-id "$(az group show -n rg-o11y-test --query id -o tsv)/providers/Microsoft.Insights/dataCollectionRules/dcr-o11y-findings" \
   --skip host_storage,acr_pull
@@ -215,7 +215,7 @@ VM is being repurposed.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `expected RHEL 9, got …` | wrong image | use a RHEL 9 VM |
-| `Check the UAMI can get a token from IMDS` fails | UAMI not attached to the VM, or wrong `UAMI_NAME` / RG | `az vm identity assign`; check `vm.env` |
+| `Check the UAMI can get a token from IMDS` fails | UAMI not attached to the VM, or wrong `UAMI_RESOURCE_ID` | `az vm identity assign`; check `vm.env` |
 | `logs_ingestion_endpoint and findings_dcr_immutable_id are required when dry_run is false` | `--no-findings-infra` but no DCE/DCR in the RG yet | drop the flag, or deploy the findings path first |
 | `working tree has uncommitted changes` | installing `HEAD` from a dirty tree | commit, use `--release-ref`, or `--allow-dirty` |
 | pip install fails on the VM | no route to PyPI / mirror | set `PIP_INDEX_URL` to the approved mirror; check egress |

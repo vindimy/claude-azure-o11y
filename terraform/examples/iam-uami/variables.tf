@@ -1,5 +1,5 @@
 variable "resource_group_name" {
-  description = "Resource group for the UAMI. module-azure-o11y looks the UAMI up by name in its own resource_group_name, so use the same RG."
+  description = "Resource group for the UAMI. Any RG or subscription: module-azure-o11y and deploy.sh take the UAMI by resource ID (output uami_id)."
   type        = string
 }
 
@@ -9,7 +9,7 @@ variable "location" {
 }
 
 variable "uami_name" {
-  description = "UAMI name; passed to module-azure-o11y / deploy.sh as uami_name."
+  description = "UAMI name. Its resource ID (output uami_id) is what module-azure-o11y / deploy.sh take as uami_resource_id."
   type        = string
   default     = "id-o11y-alerting"
 }

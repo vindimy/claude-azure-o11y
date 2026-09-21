@@ -18,10 +18,10 @@
 #   -- ...               passed to ansible-playbook, e.g. -- --private-key ~/.ssh/id_vm --limit vm-01
 set -euo pipefail
 
-PARAMS=(RESOURCE_GROUP_NAME UAMI_NAME MANAGEMENT_GROUP_ID SUBSCRIPTION_IDS LAW_RESOURCE_ID
+PARAMS=(RESOURCE_GROUP_NAME UAMI_RESOURCE_ID MANAGEMENT_GROUP_ID SUBSCRIPTION_IDS LAW_RESOURCE_ID
         OPS_SCHEDULE_CRON FINOPS_SCHEDULE_CRON DRY_RUN APP_INSIGHTS_NAME
         VM_HOST VM_SSH_USER RELEASE_REF PIP_INDEX_URL)
-REQUIRED=(RESOURCE_GROUP_NAME UAMI_NAME MANAGEMENT_GROUP_ID LAW_RESOURCE_ID)
+REQUIRED=(RESOURCE_GROUP_NAME UAMI_RESOURCE_ID MANAGEMENT_GROUP_ID LAW_RESOURCE_ID)
 
 usage() {
   sed -n '2,19p' "$0"
@@ -90,8 +90,9 @@ log "Packing release $RELEASE_ID"
 git archive --format=tar.gz -o "$TMP/release.tar.gz" "$COMMIT" \
   src config identity requirements.txt requirements-vm.txt
 
-log "Resolving UAMI $UAMI_NAME"
-UAMI_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query clientId -o tsv)
+log "Resolving UAMI $UAMI_RESOURCE_ID"
+# Read by ID: the IAM repo owns the UAMI, which may live in another RG or subscription.
+UAMI_CLIENT_ID=$(az identity show --ids "$UAMI_RESOURCE_ID" --query clientId -o tsv)
 [[ -n "$UAMI_CLIENT_ID" ]]
 
 if [[ "$FINDINGS_INFRA" == true ]]; then
@@ -104,7 +105,7 @@ fi
 # host_storage and acr_pull only matter to a Function App; secrets is skipped for lack of a Key Vault.
 if [[ "$SKIP_IDENTITY_CHECK" != true ]]; then
   log "Checking UAMI role assignments"
-  scripts/check-identity.sh --uami-name "$UAMI_NAME" --resource-group "$RESOURCE_GROUP_NAME" \
+  scripts/check-identity.sh --uami-resource-id "$UAMI_RESOURCE_ID" \
     --management-group-id "$MANAGEMENT_GROUP_ID" --law-resource-id "$LAW_RESOURCE_ID" \
     --findings-dcr-id "$DCR_ID" --skip host_storage,acr_pull || true
 fi

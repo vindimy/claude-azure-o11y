@@ -2,15 +2,14 @@
 # Verify the UAMI holds every row in identity/role-requirements.yaml. Prints ok / MISSING / skip per row;
 # exit 1 if any row is missing. A row whose scope input was not given is skipped, so the RHEL VM path
 # (no storage account, Key Vault or ACR) can check only the rows it needs.
-# Usage: check-identity.sh --uami-name X --resource-group RG --management-group-id MG
+# Usage: check-identity.sh --uami-resource-id ID --management-group-id MG
 #        [--storage-account-id ID] [--key-vault-id ID] [--acr-name NAME] [--law-resource-id ID]
 #        [--findings-dcr-id ID] [--skip id,id]     (--skip: rows this deployment style does not need)
 set -euo pipefail
 STORAGE_ACCOUNT_ID=""; KEY_VAULT_ID=""; ACR_NAME=""; LAW_RESOURCE_ID=""; FINDINGS_DCR_ID=""; SKIP=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --uami-name) UAMI_NAME="$2"; shift 2 ;;
-    --resource-group) RESOURCE_GROUP_NAME="$2"; shift 2 ;;
+    --uami-resource-id) UAMI_RESOURCE_ID="$2"; shift 2 ;;
     --management-group-id) MANAGEMENT_GROUP_ID="$2"; shift 2 ;;
     --storage-account-id) STORAGE_ACCOUNT_ID="$2"; shift 2 ;;
     --key-vault-id) KEY_VAULT_ID="$2"; shift 2 ;;
@@ -21,8 +20,8 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-: "${UAMI_NAME:?}" "${RESOURCE_GROUP_NAME:?}" "${MANAGEMENT_GROUP_ID:?}"
-PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP_NAME" -n "$UAMI_NAME" --query principalId -o tsv)
+: "${UAMI_RESOURCE_ID:?}" "${MANAGEMENT_GROUP_ID:?}"
+PRINCIPAL_ID=$(az identity show --ids "$UAMI_RESOURCE_ID" --query principalId -o tsv)
 ACR_ID=""
 [[ -z "$ACR_NAME" ]] || ACR_ID=$(az acr show -n "$ACR_NAME" --query id -o tsv)
 MG_SCOPE="/providers/Microsoft.Management/managementGroups/$MANAGEMENT_GROUP_ID"

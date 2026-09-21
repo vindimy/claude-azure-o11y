@@ -17,7 +17,7 @@ Existing, in the target subscription unless noted:
 | Resource | Parameter | Notes |
 |----------|-----------|-------|
 | resource group | `resource_group_name` | receives plan, app, DCE, DCR |
-| UAMI | `uami_name` | from the IAM repo; roles per `identity/role-requirements.yaml` |
+| UAMI | `uami_resource_id` | from the IAM repo, any RG or subscription; roles per `identity/role-requirements.yaml` |
 | storage account | `storage_account_name` | Functions host state only; UAMI needs `Storage Blob Data Owner` |
 | Key Vault | `key_vault_name` | no secret referenced today; UAMI needs `Key Vault Secrets User` |
 | Log Analytics workspace | `law_resource_id` | may be in another subscription; receives the two tables |
@@ -53,7 +53,7 @@ PARAMS=deploy.env ARGS=--deploy` is the same thing.
 
 ```bash
 cp scripts/deploy.env.example deploy.env
-$EDITOR deploy.env            # at least: RESOURCE_GROUP_NAME LOCATION UAMI_NAME STORAGE_ACCOUNT_NAME
+$EDITOR deploy.env            # at least: RESOURCE_GROUP_NAME LOCATION UAMI_RESOURCE_ID STORAGE_ACCOUNT_NAME
                               #           KEY_VAULT_NAME MANAGEMENT_GROUP_ID LAW_RESOURCE_ID ACR_NAME IMAGE_TAG
 scripts/deploy.sh --param-file deploy.env
 ```
@@ -179,8 +179,7 @@ NCRONTAB that never fires, for example `0 0 0 31 2 *`.
 ### Verify the identity
 
 ```bash
-scripts/check-identity.sh --uami-name id-o11y-alerting --resource-group rg-o11y-test \
-  --management-group-id mg-prod \
+scripts/check-identity.sh --uami-resource-id "$UAMI_RESOURCE_ID" --management-group-id mg-prod \
   --storage-account-id $(az storage account show -g rg-o11y-test -n sto11yalerting --query id -o tsv) \
   --key-vault-id $(az keyvault show -n kv-o11y-alerting --query id -o tsv) \
   --acr-name acrusbcloud --law-resource-id "$LAW_RESOURCE_ID" \

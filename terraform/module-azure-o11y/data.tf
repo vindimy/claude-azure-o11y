@@ -2,9 +2,11 @@ data "azurerm_resource_group" "this" {
   name = var.resource_group_name
 }
 
-data "azurerm_user_assigned_identity" "this" {
-  name                = var.uami_name
-  resource_group_name = var.resource_group_name
+# The UAMI comes from the IAM repo and may live in another RG or subscription, so read it by ARM ID.
+data "azapi_resource" "uami" {
+  type                   = "Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31"
+  resource_id            = var.uami_resource_id
+  response_export_values = ["properties.clientId"]
 }
 
 data "azurerm_storage_account" "this" {

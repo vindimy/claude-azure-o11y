@@ -15,7 +15,7 @@ output "image_reference" {
 }
 
 output "uami_client_id" {
-  value = data.azurerm_user_assigned_identity.this.client_id
+  value = data.azapi_resource.uami.output.properties.clientId
 }
 
 output "findings_dcr_id" {

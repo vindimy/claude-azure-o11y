@@ -8,7 +8,7 @@ import yaml
 CONTRACT = {
     "resource_group_name",
     "location",
-    "uami_name",
+    "uami_resource_id",
     "storage_account_name",
     "key_vault_name",
     "management_group_id",
@@ -81,7 +81,13 @@ NOT_ON_VM = {
 VM_ONLY = {"vm_host", "vm_ssh_user", "release_ref", "pip_index_url"}
 VM_CONTRACT = (CONTRACT - NOT_ON_VM) | VM_ONLY
 # Resolved by vm-install.sh from the contract, rather than set by the operator.
-VM_ROLE_WIRING = {"vm_host", "vm_ssh_user", "resource_group_name", "uami_name", "app_insights_name"}
+VM_ROLE_WIRING = {
+    "vm_host",
+    "vm_ssh_user",
+    "resource_group_name",
+    "uami_resource_id",
+    "app_insights_name",
+}
 
 
 def test_vm_env_example_matches_vm_contract(repo_root: Path) -> None:

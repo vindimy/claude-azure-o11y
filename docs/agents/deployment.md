@@ -102,7 +102,7 @@ Path C (`vm.env.example`, `vm-install.sh`, the role's `argument_specs.yml`, and 
 |-----------|---------|-------|
 | `resource_group_name` | `rg-o11y-test` | existing |
 | `location` | `centralus` | |
-| `uami_name` | `id-o11y-alerting` | existing, from the external IAM repo; resolved to ID + client ID |
+| `uami_resource_id` | `/subscriptions/…/userAssignedIdentities/id-o11y-alerting` | existing, from the external IAM repo; **required**. Read by ARM ID, so it may be in another RG or subscription; resolved to its client ID |
 | `storage_account_name` | `sto11yalerting` | existing; Functions host storage only |
 | `key_vault_name` | `kv-o11y-alerting` | existing; no secret is referenced today (SMTP/Datadog later) |
 | `management_group_id` | `mg-prod` | scope of iteration |
@@ -184,8 +184,8 @@ flags), and the role uses snake_case. The Function-App-only parameters (`locatio
 
 | Parameter | Example | Notes |
 |-----------|---------|-------|
-| `resource_group_name` | `rg-o11y-test` | holds the UAMI and the findings DCE/DCR |
-| `uami_name` | `id-o11y-alerting` | resolved to its client ID (`AZURE_CLIENT_ID`); must be attached to the VM |
+| `resource_group_name` | `rg-o11y-test` | holds the findings DCE/DCR |
+| `uami_resource_id` | `/subscriptions/…/userAssignedIdentities/id-o11y-alerting` | **required**; resolved to its client ID (`AZURE_CLIENT_ID`); must be attached to the VM |
 | `management_group_id` | `mg-prod` | scope; the smoke test validates `config/` with this MG's overrides |
 | `subscription_ids` | `` | as in the contract |
 | `law_resource_id` | `/subscriptions/…/workspaces/law-central` | **required** |

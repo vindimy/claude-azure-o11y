@@ -15,7 +15,7 @@ import json, os, sys
 a = sys.argv[1:]
 def out(v):
     print(v); sys.exit(0)
-if a[:2] == ["identity", "show"]:
+if a[:2] == ["identity", "show"] and "--ids" in a:
     out("principal-1" if "principalId" in a else "client-1")
 if a[:2] == ["acr", "show"]:
     out("/acr/id")
@@ -126,7 +126,11 @@ def test_run_once_needs_mg(repo_root: Path, bin_dir: Path) -> None:
 
 # --- check-identity.sh -------------------------------------------------------------------------
 
-BASE = ["--uami-name", "id-x", "--resource-group", "rg-1", "--management-group-id", "mg-x"]
+UAMI_ID = (
+    "/subscriptions/s/resourceGroups/rg-iam/providers/Microsoft.ManagedIdentity"
+    "/userAssignedIdentities/id-x"
+)
+BASE = ["--uami-resource-id", UAMI_ID, "--management-group-id", "mg-x"]
 
 
 def test_check_identity_vm_style_skips_rows_without_inputs(repo_root: Path, bin_dir: Path) -> None:

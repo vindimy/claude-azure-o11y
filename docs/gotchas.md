@@ -66,3 +66,10 @@ The VM runner (`o11y-alerting@.service`) is `Type=oneshot`, so its time limit is
 `RuntimeMaxSec`. NCRONTAB, like cron, ORs a restricted day-of-month with a restricted day-of-week;
 `OnCalendar` ANDs them. The `ncrontab_to_oncalendar` filter rejects such expressions instead of
 silently changing the schedule. Timers use `UTC` explicitly because NCRONTAB on Functions is UTC.
+
+## UAMI is read by resource ID through azapi (2026-09-21)
+
+`azurerm_user_assigned_identity` takes name + RG and only reads in the provider's subscription. The UAMI
+comes from the IAM repo and may live elsewhere, so `module-azure-o11y` reads it with `data.azapi_resource`
+by `uami_resource_id` (like the LAW), and the scripts use `az identity show --ids`. Pinned API version:
+`Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31`.
