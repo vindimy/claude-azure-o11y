@@ -94,40 +94,24 @@ python3 -c 'import json,sys; [print(r["ResourceName"], r["ObservedValue"], r["Th
 Use this to prove the ingestion path or to backfill one run without waiting for the schedule. It writes
 real rows to the workspace, so point it at a non-production MG unless you mean it.
 
-1. Get the ingestion endpoint and DCR immutable ID from an existing deployment. Either read the
-   Function App settings, or resolve them from the resource group:
+`--live` resolves the ingestion endpoint and DCR immutable ID from the findings DCE and DCR in the
+resource group, the same lookup the deploys use, and sets `DRY_RUN=false`. The resource group and MG
+can come from a `deploy.env` or `vm.env`, or from flags:
 
-   ```bash
-   az functionapp config appsettings list -g rg-o11y-test -n func-o11y-alerting \
-     --query "[?name=='LOGS_INGESTION_ENDPOINT' || name=='FINDINGS_DCR_IMMUTABLE_ID'].{n:name,v:value}" -o table
-   ```
+```bash
+scripts/run-once.sh --param-file deploy.env --live --mode finops
+scripts/run-once.sh --mg-id mg-nonprod --resource-group rg-o11y-test --live --mode ops
+scripts/run-once.sh --param-file deploy.env --live --subscription-ids "<sub-id>" --mode ops
+```
 
-   ```bash
-   RG_ID=$(az group show -n rg-o11y-test --query id -o tsv)
-   az rest --method get --url "https://management.azure.com$RG_ID/providers/Microsoft.Insights/dataCollectionEndpoints/dce-o11y-findings?api-version=2023-03-11" --query properties.logsIngestion.endpoint -o tsv
-   az rest --method get --url "https://management.azure.com$RG_ID/providers/Microsoft.Insights/dataCollectionRules/dcr-o11y-findings?api-version=2023-03-11" --query properties.immutableId -o tsv
-   ```
-
-2. Put them in `.env` (git-ignored; start from `.env.example`):
-
-   ```bash
-   MG_ID=mg-nonprod
-   SUBSCRIPTION_IDS=
-   LAW_RESOURCE_ID=/subscriptions/…/resourceGroups/rg-monitoring/providers/Microsoft.OperationalInsights/workspaces/law-central
-   LOGS_INGESTION_ENDPOINT=https://dce-o11y-findings-xxxx.centralus-1.ingest.monitor.azure.com
-   FINDINGS_DCR_IMMUTABLE_ID=dcr-0123456789abcdef0123456789abcdef
-   ```
-
-3. Run with `DRY_RUN` set on the command line. `run_local.py` defaults `DRY_RUN` to `true` before
-   `.env` is read, so a `DRY_RUN=false` line in `.env` is ignored:
-
-   ```bash
-   DRY_RUN=false RUN_MODES=finops .venv/bin/python src/run_local.py
-   ```
-
-Your user needs `Monitoring Metrics Publisher` on the DCR for this; a 403 is reported as
+The script logs `LIVE: writing findings for <mg> to the workspace through <dcr id>` before it starts.
+Your user needs `Monitoring Metrics Publisher` on that DCR; a 403 is reported as
 `PermissionMissing("findings_ingest")` with the matching row of `identity/role-requirements.yaml`.
-Do not use `scripts/run-once.sh` for live runs; it forces `DRY_RUN=true`.
+
+Without the script, the same thing by hand is `DRY_RUN=false RUN_MODES=finops
+.venv/bin/python src/run_local.py` with `MG_ID`, `LOGS_INGESTION_ENDPOINT`, and
+`FINDINGS_DCR_IMMUTABLE_ID` in `.env`. Note that `run_local.py` defaults `DRY_RUN` to `true` before
+`.env` is read, so `DRY_RUN` must be on the command line, not in the file.
 
 ### Tests, lint, generated docs
 
@@ -155,7 +139,8 @@ Only for the Function App styles; the VM path has no image. Details in
 | `.venv/bin/python: No such file` | no virtualenv, or a different path | create `.venv` as above or set `PY=` |
 | `PermissionMissing("inventory")` / `("metrics")` | your user lacks Reader / Monitoring Reader on the scope | request the role, or pick a subscription you can read |
 | `PermissionMissing("findings_ingest")` on a live run | your user lacks Monitoring Metrics Publisher on the DCR, or the grant is under 30 minutes old | request it; wait; retry |
-| `LOGS_INGESTION_ENDPOINT is required when DRY_RUN=false` | live run with an incomplete `.env` | fill both ingestion values |
+| `--live needs --resource-group` | no RG to resolve the DCE/DCR from | pass `--resource-group` or a param file with `RESOURCE_GROUP_NAME` |
+| `findings DCE/DCR not found in RG …` | nothing deployed to that RG yet | deploy once ([azure-function.md](azure-function.md) or [azure-vm.md](azure-vm.md)), or use dry run |
 | `findings=0` on a scope that has VMs | thresholds not crossed, `DataCoverage` below `min_coverage`, or everything ignored | check `skips`, `ignored_rg_count`, and `excluded` in the `run complete` line |
 | every row has `MissingTags` | resources lack `owner` / `assignment_group` / `car_id`, or `config/assignment-groups.yaml` lacks the group | tag the resources or add the group |
 | slow FinOps run | one Retail Prices call per distinct SKU/region pair | expected on first run per region; `MAX_CONCURRENCY` (default 8) bounds the metrics fan-out only |

@@ -15,7 +15,7 @@ CPU only. Owner: Dmitriy (Cloud Engineering).
 - `make test`: pytest; fails below 80% coverage on `evaluate/` and `recommend/`
 - `make lint`: ruff + mypy
 - `make identity-doc`: regenerate `docs/identity-requirements.md` from `identity/role-requirements.yaml`
-- `scripts/run-once.sh --mg-id <mg> --subscription-ids <id> [--mode ops|finops|all]`: local dry run; findings land in `./out/findings/*.jsonl`
+- `scripts/run-once.sh --mg-id <mg> --subscription-ids <id> [--mode ops|finops|all]`: local dry run; findings land in `./out/findings/*.jsonl`. `--param-file deploy.env --live` writes to the workspace instead
 - `scripts/build-image.sh --param-file deploy.env [--deploy]` (or `make image`): manual image build + ACR push
 - `scripts/vm-install.sh --param-file vm.env [--release-ref <sha>]` (or `make vm-install`): install/update on a RHEL 9 VM via Ansible
 

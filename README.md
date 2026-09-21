@@ -24,6 +24,7 @@ written to Log Analytics, rows land in `./out/findings/<table>.jsonl`):
 
 ```bash
 scripts/run-once.sh --mg-id mg-nonprod --subscription-ids "<subscription-id>" [--mode ops|finops|all]
+scripts/run-once.sh --param-file deploy.env --live --mode finops   # write to the workspace instead
 ```
 
 ## Deploying
