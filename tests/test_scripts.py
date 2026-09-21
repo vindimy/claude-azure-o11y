@@ -193,3 +193,48 @@ def test_check_identity_function_app_style_checks_every_row(repo_root: Path, bin
     assert res.returncode == 0, res.stdout + res.stderr
     assert "ok    acr_pull: AcrPull on /acr/id" in res.stdout
     assert "skip" not in res.stdout
+
+
+# --- vm-package-env.sh -------------------------------------------------------------------------
+
+
+def test_vm_package_env_writes_resolved_values(
+    repo_root: Path, bin_dir: Path, tmp_path: Path
+) -> None:
+    pf = tmp_path / "vm.env"
+    pf.write_text(
+        "RESOURCE_GROUP_NAME=rg-1\nUAMI_RESOURCE_ID=/uami\nMANAGEMENT_GROUP_ID=mg-x\n"
+        "LAW_RESOURCE_ID=/law\nDRY_RUN=false\nVM_HOST=10.0.0.4   # ignored here\n"
+    )
+    grants = ["Reader", "Monitoring Reader", "Log Analytics Reader", "Monitoring Metrics Publisher"]
+    env = _env(bin_dir, FAKE_AZ_GRANTS=json.dumps(grants))
+    args = [
+        "--param-file",
+        str(pf),
+        "--no-findings-infra",
+        "--pip-index-url",
+        "https://mirror/simple",
+    ]
+    res = _run(repo_root, "vm-package-env.sh", args, env)
+    assert res.returncode == 0, res.stderr
+    got = dict(
+        line.split("=", 1) for line in res.stdout.splitlines() if line and not line.startswith("#")
+    )
+    assert got["MANAGEMENT_GROUP_ID"] == "mg-x"
+    assert got["UAMI_RESOURCE_ID"] == "/uami"
+    assert got["UAMI_CLIENT_ID"] == "client-1"
+    assert got["LOGS_INGESTION_ENDPOINT"] == "https://dce.example"
+    assert got["FINDINGS_DCR_IMMUTABLE_ID"] == "dcr-immutable-1"
+    assert got["PIP_INDEX_URL"] == "https://mirror/simple"
+    assert got["OPS_SCHEDULE_CRON"] == "0 */15 * * * *"
+    assert got["APPLICATIONINSIGHTS_CONNECTION_STRING"] == ""
+    assert "VM_HOST" not in got
+    # The identity check and the DCR id for the IAM repo go to stderr, never into the file.
+    assert "ok    findings_ingest" in res.stderr
+    assert "dcr-o11y-findings" in res.stderr
+
+
+def test_vm_package_env_needs_required_params(repo_root: Path, bin_dir: Path) -> None:
+    res = _run(repo_root, "vm-package-env.sh", ["--management-group-id", "mg-x"], _env(bin_dir))
+    assert res.returncode == 2
+    assert "missing required parameter: RESOURCE_GROUP_NAME" in res.stderr

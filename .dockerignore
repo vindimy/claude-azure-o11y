@@ -11,3 +11,5 @@ docs
 .ruff_cache
 .env
 deploy.env
+packaging
+releases

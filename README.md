@@ -44,6 +44,9 @@ Both deployment paths take the same parameters and only reference that tag.
   `cp scripts/vm.env.example vm.env`, fill it in, then `scripts/vm-install.sh --param-file vm.env`.
   The same code runs from systemd timers. Re-run with `--release-ref <sha>` to update
   ([details](docs/agents/deployment.md#path-c-rhel-9-vm-scriptsvm-installsh--ansible)).
+  For a VM that cannot reach this repo, `make vm-package VERSION=<n>` builds a self-contained package
+  under `releases/`, installed on the VM with the `install.sh` inside
+  ([runbook](docs/ops/azure-vm.md#install-from-a-self-contained-package)).
 
 The runtime identity is an existing user-assigned managed identity. What it must be granted is listed in
 `identity/role-requirements.yaml`; `scripts/check-identity.sh` verifies it. `terraform/examples/iam-uami`

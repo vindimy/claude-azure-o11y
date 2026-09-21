@@ -175,6 +175,22 @@ scripts/vm-install.sh --param-file vm.env -- --private-key ~/.ssh/id_vm   # extr
 - No uninstall script yet: stop and disable the timers, then remove `/opt/o11y-alerting`,
   `/etc/o11y-alerting`, and the units. The findings path belongs to `destroy.sh` / Terraform.
 
+### Path C without repo access: the self-contained package
+
+When the VM cannot reach this repository, GitHub, or GitLab, `scripts/build-vm-package.sh --version N`
+(`make vm-package VERSION=N`) builds `releases/o11y-alerting-vm-vN.tar.gz`: the same release bundle
+`vm-install.sh` sends, the unchanged `ansible/` role, a copy of `scripts/lib/params.sh`, and the files in
+`packaging/vm/` (`install.sh`, `package.env.example`, `requirements-installer.txt`). On the VM,
+`install.sh` pip-installs a pinned `ansible-core` into a throwaway venv, resolves the UAMI client ID
+through IMDS (a token requested by `msi_res_id` carries it as `appid`), and runs the playbook against
+`localhost`, so the role is the only place the install logic lives. The release id is `vN` instead of
+a commit SHA; the `RELEASE` file records the source commit. What `vm-install.sh` resolves with `az`
+(client ID, findings DCE/DCR, App Insights) comes from `package.env`, which
+`scripts/vm-package-env.sh --param-file vm.env` writes on a workstation. Built packages are committed
+under `releases/` and never rebuilt in place. Runbook: [docs/ops/azure-vm.md](../ops/azure-vm.md#install-from-a-self-contained-package).
+When the role or `vm-install.sh` changes, `tests/test_vm_package.py` builds a package from the working
+tree and checks `install.sh` and `package.env.example` still agree.
+
 ### Path C parameters
 
 Contract parameters keep their names and meanings. `vm-install.sh` uses UPPER_SNAKE (in `vm.env` or as

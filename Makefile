@@ -1,5 +1,5 @@
 PY ?= .venv/bin/python
-.PHONY: test lint identity-doc image vm-install
+.PHONY: test lint identity-doc image vm-install vm-package
 test:
 	$(PY) -m pytest
 lint:
@@ -12,3 +12,6 @@ image:
 # Install/update on a RHEL 9 VM (Path C). e.g. make vm-install PARAMS=vm.env ARGS='--release-ref <sha>'
 vm-install:
 	scripts/vm-install.sh $(if $(PARAMS),--param-file $(PARAMS)) $(ARGS)
+# Self-contained RHEL 9 VM package: no git/GitHub/GitLab on the VM (docs/ops/azure-vm.md). e.g. make vm-package VERSION=2
+vm-package:
+	scripts/build-vm-package.sh --version $(VERSION) $(ARGS)

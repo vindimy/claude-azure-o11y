@@ -3,6 +3,8 @@
 Path C runs the same `src/` pipeline on a RHEL 9 virtual machine from systemd timers instead of a
 Function App. There is no container and no Functions host. `scripts/vm-install.sh` runs on your
 workstation and drives `ansible/playbook.yml` over SSH; it is both the installer and the updater.
+A [self-contained package](#install-from-a-self-contained-package) is the alternative when the VM
+cannot reach this repository, GitHub, or GitLab.
 
 ## Prerequisites
 
@@ -40,6 +42,9 @@ Key Vault, or ACR.
 `.venv/bin` to `PATH`); an SSH key for the VM's admin user; a clean checkout of the commit to install.
 
 ## Install
+
+Over SSH from your workstation. For a VM that cannot reach this repository, GitHub, or GitLab, use the
+[self-contained package](#install-from-a-self-contained-package) instead.
 
 ```bash
 cp scripts/vm.env.example vm.env
@@ -82,6 +87,100 @@ The run ends by printing the findings DCR ID (for the IAM repo) and `systemctl l
 | `/etc/systemd/system/o11y-alerting@.service` | one run; `%i` is `ops` or `finops` |
 | `/etc/systemd/system/o11y-alerting-{ops,finops}.timer` | the schedules, converted from NCRONTAB to `OnCalendar` (UTC) |
 | `/var/lib/o11y-alerting/out/findings/*.jsonl` | dry-run output |
+
+## Install from a self-contained package
+
+Use this when the VM, or whoever installs on it, has no access to this repository, GitHub, or GitLab.
+A package holds the release bundle, the Ansible role, and a local installer, so the VM reaches only
+RHUI (`dnf`), a PyPI index (`pip`), and Azure. Built packages live in [releases/](../../releases/); v1
+is `releases/o11y-alerting-vm-v1.tar.gz` with its `.sha256`. The result on the VM is the same layout,
+units, and timers as the SSH install, with `v<N>` as the release id instead of a commit SHA.
+
+### Prerequisites
+
+The VM as in [The VM](#the-vm): RHEL 9, the UAMI attached, and outbound access to RHUI, a PyPI index,
+Azure management and ingestion endpoints, and `prices.azure.com`. In addition:
+
+- **A sudo-capable user on the VM** to run the installer. No SSH from a workstation and no Ansible on
+  a workstation. `install.sh` pip-installs a pinned `ansible-core` from the PyPI index into its own
+  venv; `--ansible-playbook /usr/bin/ansible-playbook` uses one from `dnf install ansible-core` instead.
+- **The findings tables, DCE, and DCR already in the resource group.** Anything that deploys the
+  findings path creates them: `deploy.sh`, Terraform, `vm-install.sh`, or `scripts/vm-package-env.sh`
+  below. The installer cannot create them: the VM has no `az`, and the UAMI has no rights to.
+- **The UAMI roles** as above; `findings_ingest` on the DCR after the findings path exists.
+- **A way to copy two files to the VM:** the package and a `package.env`. `scp`, a storage account, or
+  an internal artifact store all work.
+
+`package.env` holds the contract parameters plus the values `vm-install.sh` would have resolved with `az`:
+
+| Key | Where it comes from |
+|-----|---------------------|
+| `MANAGEMENT_GROUP_ID`, `SUBSCRIPTION_IDS`, `LAW_RESOURCE_ID`, `OPS_SCHEDULE_CRON`, `FINOPS_SCHEDULE_CRON`, `DRY_RUN`, `PIP_INDEX_URL` | same meaning as in `vm.env` |
+| `UAMI_RESOURCE_ID` | the attached UAMI; the installer resolves its client ID through IMDS. `UAMI_CLIENT_ID` instead skips that lookup |
+| `LOGS_INGESTION_ENDPOINT`, `FINDINGS_DCR_IMMUTABLE_ID` | the findings DCE and DCR; required unless `DRY_RUN=true` |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | optional; keep the file `0600` when set |
+
+### Build a package (workstation, once per version)
+
+```bash
+make vm-package VERSION=2                                  # releases/o11y-alerting-vm-v2.tar.gz + .sha256, from a clean HEAD
+scripts/build-vm-package.sh --version 2 --ref <sha|tag>    # from another commit
+scripts/build-vm-package.sh --version 2 --allow-dirty      # from the working tree; SOURCE_COMMIT gets -dirty
+```
+
+A version is built once: the script refuses to overwrite an existing file without `--force`. Commit
+both files under `releases/`. The `RELEASE` file inside records the version, source commit, and build
+time; it is also unpacked into the release directory on the VM.
+
+### Write package.env (workstation with az)
+
+```bash
+(umask 077; scripts/vm-package-env.sh --param-file vm.env > package.env)
+scripts/vm-package-env.sh --param-file vm.env --no-findings-infra > package.env   # DCE/DCR owned by Terraform or deploy.sh
+```
+
+Like `vm-install.sh`, it creates or updates the findings tables, DCE, and DCR, runs the identity
+check, and prints the DCR ID for the IAM repo; only the file goes to stdout. Without a checkout of
+this repo, start from the `package.env.example` inside the package and look the values up:
+
+```bash
+az identity show --ids "$UAMI_RESOURCE_ID" --query clientId -o tsv                 # UAMI_CLIENT_ID (optional)
+RG_ID=$(az group show -n rg-o11y-test --query id -o tsv)
+az rest --method get --query properties.logsIngestion.endpoint -o tsv \
+  --url "https://management.azure.com$RG_ID/providers/Microsoft.Insights/dataCollectionEndpoints/dce-o11y-findings?api-version=2023-03-11"
+az rest --method get --query properties.immutableId -o tsv \
+  --url "https://management.azure.com$RG_ID/providers/Microsoft.Insights/dataCollectionRules/dcr-o11y-findings?api-version=2023-03-11"
+```
+
+### Install (on the VM)
+
+```bash
+sha256sum -c o11y-alerting-vm-v1.tar.gz.sha256
+tar xzf o11y-alerting-vm-v1.tar.gz && cd o11y-alerting-vm-v1
+chmod 600 ../package.env
+sudo ./install.sh --param-file ../package.env
+sudo ./install.sh --param-file ../package.env --dry-run true      # flags override the file
+sudo ./install.sh --param-file ../package.env -- -v               # extra ansible-playbook args
+```
+
+What `install.sh` does: validates the parameters and RHEL 9, `dnf` installs `python3.11`, pip-installs
+the pinned `ansible-core` into `.installer-venv` inside the package directory (through `PIP_INDEX_URL`
+when set), asks IMDS for a token for `UAMI_RESOURCE_ID` and reads the client ID from it (which also
+proves the identity is attached), writes the extra vars to a `0600` temp file, and runs the packaged
+`ansible/playbook.yml` against `localhost`. From there the role does exactly what it does over SSH
+([above](#install)). `/opt/o11y-alerting/releases/v1/RELEASE` records what was installed.
+
+### Update, rollback, and settings with packages
+
+- **Update:** extract the newer package and run its `install.sh`. The new release gets its own venv
+  and smoke test before `current` moves.
+- **Rollback:** run `install.sh` from the older package directory again (keep the extracted
+  directories, or re-extract). A release still among the three kept on disk skips the pip install.
+- **Settings:** edit `package.env` and re-run `install.sh` with the same package; it rewrites the env
+  file and timers, as in [Change settings](#change-settings).
+- **Same version, different build:** if `releases/v<N>` on the VM came from another `SOURCE_COMMIT`,
+  the installer stops. Build a new version, or pass `--reinstall` to replace it.
+- **Remove:** as in [Remove](#remove), then delete the extracted package directories.
 
 ## Operate
 
@@ -223,5 +322,9 @@ VM is being repurposed.
 | `systemd-analyze calendar` fails | NCRONTAB with both day-of-month and day-of-week restricted, or a form the converter does not support | change the expression |
 | `missing Monitoring Metrics Publisher on data_collection_rule …` in the journal | `findings_ingest` not granted, or granted under 30 minutes ago | grant on the printed DCR ID; wait |
 | `ansible-playbook not found` | not on `PATH` | `.venv/bin/pip install ansible-core` and activate the venv |
+| `is not a complete package directory` | `install.sh` run from outside the extracted package | `cd o11y-alerting-vm-v<N>` and run `./install.sh` there |
+| `IMDS token request failed` (package install) | UAMI not attached, or wrong `UAMI_RESOURCE_ID` in `package.env` | `az vm identity assign`; check the file |
+| `release v<N> is already installed from another build` | the version was rebuilt from a different commit | build a new version, or `--reinstall` |
+| pip install of `ansible-core` fails (package install) | no route to PyPI / mirror | set `PIP_INDEX_URL`, or `dnf install ansible-core` and `--ansible-playbook /usr/bin/ansible-playbook` |
 | SSH or sudo prompts | key or sudoers | `-- --private-key …`, `-- --ask-become-pass` |
 | `Job for o11y-alerting@ops.service failed` after 30 min | run exceeded `TimeoutStartSec` | look for a stalled scope; raise `o11y_timeout_sec` only with a reason |

@@ -1,0 +1,3 @@
+# Installed by install.sh into ./.installer-venv (python3.11) to run the packaged Ansible role locally.
+# Not used by the app; the app's venv comes from requirements-vm.txt inside release.tar.gz.
+ansible-core>=2.17,<2.19
