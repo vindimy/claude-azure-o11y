@@ -11,6 +11,13 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
   why each row exists.
 - Per-MG knobs (e.g. `min_vcpu`) go in the `recommend:` block of the thresholds config.
 
+## Pricing
+
+`recommend/pricing.py` (`RetailPriceClient`) fills the cost columns from the Azure Retail Prices API
+(`https://prices.azure.com/api/retail/prices`). The API is unauthenticated, so this is the one HTTP client
+allowed outside the thin-client packages. Prices are cached per run, and a pricing failure leaves the cost
+columns empty instead of failing the run.
+
 ## Rules by type
 
 - **VM:** if P95 CPU < 20% and P95 memory < 30%, recommend the next SKU down in the same family, using

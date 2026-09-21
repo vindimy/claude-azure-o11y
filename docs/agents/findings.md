@@ -89,5 +89,3 @@ excluded resource IDs, `RunId`, and write failures.
   `tests/test_findings.py` fails if the row keys or types drift from the schema.
 - Redeploy (either path) to update the table and DCR. Rows ingested before the change keep nulls in the
   new columns.
-- Prices come from the Azure Retail Prices API (`https://prices.azure.com/api/retail/prices`), which is
-  unauthenticated. Cache prices per run.

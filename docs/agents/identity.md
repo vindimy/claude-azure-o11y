@@ -33,9 +33,11 @@ data_collection_rule …`. Pushing images belongs to the GitLab runner, not the 
 
 ## Self-check
 
-On first run, and through `scripts/check-identity.sh`, verify each YAML row with a cheap read call. Log
-the rows that are missing, so a half-provisioned UAMI fails with a message like "missing Log Analytics
-Reader on <LAW id>" instead of a generic 403 deep inside a loop.
+`scripts/check-identity.sh` (run by `deploy.sh`) verifies each YAML row with a cheap read call and lists
+the missing ones. At runtime, a thin client that gets a 403 raises `PermissionMissing("<need id>")`, and
+`bootstrap.py` logs it with that row of `identity/role-requirements.yaml`. A half-provisioned UAMI then
+fails with a named permission instead of a generic 403 deep inside a loop. New thin clients follow the
+same pattern.
 
 ## Secrets
 

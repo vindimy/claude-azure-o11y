@@ -14,7 +14,7 @@ coverage, it has no routing by ownership, and it gives no control over threshold
 ## Pipeline
 
 ```
-Timer trigger (cron per MG config)
+Timer trigger: o11y_ops / o11y_finops (OPS_SCHEDULE_CRON / FINOPS_SCHEDULE_CRON app settings)
   └─ Inventory: Azure Resource Graph, one query per resource type, MG-scoped
        └─ Drop ignored resource groups (config/ignore.yaml), before any metrics call
             └─ Group by (subscription, region, resource type)
@@ -71,9 +71,11 @@ Guest-OS metrics apply to VMs only.
 
 ## Code boundaries
 
-- Every Azure call goes through a thin client in `inventory/`, `metrics/`, or `storage/` (blob and Logs
+- Every Azure call goes through a thin client in `inventory/`, `metrics/`, or `storage/` (Logs
   Ingestion), behind the Protocols in `src/ports.py` and `src/notify/base.py`. `evaluate/`, `recommend/`,
   and `notify/` (findings row builders) are SDK-free and take plain data (`src/models.py`), so tests can
   swap the clients.
+- The one exception is `recommend/pricing.py`, the `RetailPriceClient` for the unauthenticated Retail
+  Prices API. It takes an injected `httpx.AsyncClient`, needs no identity, and never fails the run.
 - Code makes no `azure-cli` calls.
 - Logging is structured JSON to App Insights. Log every skipped resource with a reason.

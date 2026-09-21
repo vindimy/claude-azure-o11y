@@ -7,9 +7,8 @@ group, it reads built-in Azure Monitor metrics and writes one row per finding to
 - **FinOps findings** for cold resources, with a downsizing recommendation and estimated saving →
   `O11yFinOpsFindings_CL`, on a daily FinOps run
 
-Alerting and routing are built on those tables downstream; the function sends nothing itself.
-
-MVP is VM CPU only. Owner: Dmitriy (Cloud Engineering).
+Alerting and routing are built on those tables downstream; the function sends nothing itself. MVP is VM
+CPU only. Owner: Dmitriy (Cloud Engineering).
 
 ## Commands
 
@@ -31,7 +30,8 @@ MVP is VM CPU only. Owner: Dmitriy (Cloud Engineering).
   out of settings.
 - **Stateless runs.** The app keeps no state of its own; storage holds only Functions host state. Findings
   go to the two LAW tables; their schema lives only in `schema/findings-tables.json`.
-- **Thin clients.** SDK calls live only in `inventory/`, `metrics/`, and `storage/`.
+- **Thin clients.** Azure calls live only in `inventory/`, `metrics/`, and `storage/`; the one exception is
+  the unauthenticated Retail Prices client, `recommend/pricing.py`.
 - **Pinned APIs.** When an Azure API surprises you, pin its API version and record it in `docs/gotchas.md`.
 - **Small PRs.** One resource type or one schema change per PR.
 
@@ -40,7 +40,7 @@ MVP is VM CPU only. Owner: Dmitriy (Cloud Engineering).
 - [Architecture](docs/agents/architecture.md): pipeline, batch-metrics limits, resource types, scope, why not Advisor
 - [Thresholds](docs/agents/thresholds.md): threshold config, tag overrides, exclusion, RG ignore list
 - [Findings](docs/agents/findings.md): the two LAW tables, schema rules, ownership tags, downstream routing
-- [Recommendations](docs/agents/recommendations.md): `recommend/` rules and contract
+- [Recommendations](docs/agents/recommendations.md): `recommend/` rules, contract, and pricing
 - [Identity](docs/agents/identity.md): UAMI, the permission workflow, self-check, secrets
 - [Deployment](docs/agents/deployment.md): image build/push (CI and manual), parameter contract, `deploy.sh` vs Terraform vs RHEL VM (Ansible), CI
 - [Roadmap](docs/agents/roadmap.md): the next resource types, steps for adding one, backlog ADRs
