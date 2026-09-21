@@ -28,6 +28,8 @@ scripts/run-once.sh --mg-id mg-nonprod --subscription-ids "<subscription-id>" [-
 
 ## Deploying
 
+Operator runbooks (install, run now, logs, update, rollback, remove) per style: [docs/ops/](docs/ops/).
+
 The image is built and pushed by GitLab CI (`.gitlab-ci.yml`) as `<acr>/o11y-alerting:<commit sha>`.
 Without CI, `scripts/build-image.sh --param-file deploy.env` builds and pushes the same tag, and `--deploy`
 then runs `deploy.sh` ([details](docs/agents/deployment.md#building-and-pushing-the-image-manually)).

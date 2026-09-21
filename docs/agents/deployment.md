@@ -1,5 +1,7 @@
 # Deployment
 
+Operator runbooks live in [docs/ops/](../ops/README.md); keep them in step with any change here.
+
 Read this before touching `Dockerfile`, `scripts/deploy.sh` / `destroy.sh` / `vm-install.sh`, `terraform/`,
 `ansible/`, or `.gitlab-ci.yml`, or before adding a deployment parameter.
 
