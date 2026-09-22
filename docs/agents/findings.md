@@ -48,6 +48,12 @@ available memory), and `Aggregation` says how the series was obtained (`Average`
 | Cosmos DB | `microsoft.documentdb/databaseaccounts` | `provisioned` / `serverless` | `1200 RU/s`, `autoscale 4000 RU/s max` | `ru`, `throttled` |
 | Event Hubs | `microsoft.eventhub/namespaces` | `Standard 4 TU`, `Premium 1 PU`, `Dedicated` | `Standard 2 TU` | `throttled`, `cpu`, `ingress` |
 | VNET subnet | `microsoft.network/virtualnetworks/subnets` | the prefix list (`10.0.1.0/24`) | n/a (Ops-only) | `subnet_ip` |
+| App Service Plan | `microsoft.web/serverfarms` | `P1v3 x3` | `P1v3 x2`, `P0v3 x3`, `delete` (no apps) | `cpu`, `memory`, `http_queue` |
+| AKS cluster | `microsoft.containerservice/managedclusters` | `Standard_D4s_v5 x3 + Standard_D8s_v5 x2` (pools) | `system: Standard_D4s_v5 x1; userpool: min 1` (one change per pool, `; `-joined) | `node_cpu`, `node_memory`, `node_disk`, `unschedulable_pods` |
+| Azure Cache for Redis | `microsoft.cache/redis` | `Standard C1`, `Premium P2` | `Standard C0` | `cpu`, `memory`, `server_load`, `errors` |
+| Service Bus | `microsoft.servicebus/namespaces` | `Premium 2 MU`, `Standard`, `Basic` | `Premium 1 MU` | `throttled`, `server_errors`, `deadlettered`, `cpu`, `memory` |
+| Application Gateway | `microsoft.network/applicationgateways` | `Standard_v2 autoscale 2-10`, `WAF_v2 x3`, `Standard_Medium x2` | `Standard_v2 autoscale 1-10`, `WAF_v2 x2` | `unhealthy_hosts`, `failed_requests`, `cpu`, `capacity` |
+| Storage account | `microsoft.storage/storageaccounts` | `Standard_LRS Hot`, `Premium_LRS` | `Standard_LRS Cool` | `availability`, `throttled`, `transactions` |
 
 VNET rows are one per **subnet**: `ResourceId` is the subnet id, `ResourceName` is `<vnet>/<subnet>`,
 and `MetricNamespace` is `Microsoft.Network/virtualNetworks`.
@@ -102,9 +108,12 @@ scheduled run writes fresh rows (nothing is replayed). A 403 raises `PermissionM
 Runs are summarized in the structured `run complete` log (App Insights): counts, skips, ignored-RG count,
 excluded resource IDs, `RunId`, write failures, `type_failures` (a type whose inventory query failed;
 the run continues with the others), and a `by_type` breakdown. Skip reasons: `ignored_rg`,
-`excluded_by_tag`, `not_running` (VM), `not_online` (SQL DB), `not_ready` (pool, MI, PostgreSQL),
-`in_elastic_pool` (SQL DB, FinOps), `no_capacity_model` (Cosmos serverless, Event Hubs Dedicated, FinOps),
-`chunk_failed`, `no_ops_data`, `insufficient_finops_data`.
+`excluded_by_tag`, `not_running` (VM, AKS, App Gateway), `not_online` (SQL DB), `not_ready` (pool, MI,
+PostgreSQL, App Service Plan, Redis, Storage), `not_active` (Service Bus), `in_elastic_pool` (SQL DB,
+FinOps), `no_capacity_model` (FinOps: Cosmos serverless, Event Hubs Dedicated, App Service Plan
+Free/Shared, Service Bus Basic/Standard, App Gateway v1 or autoscale minimum 0), `not_tierable` (Storage,
+FinOps: Premium, non-blob kinds, or already Cool/Cold/Archive), `chunk_failed`, `no_ops_data`,
+`insufficient_finops_data`.
 
 Counting differs by reason: `no_ops_data` is counted **per (resource, metric)** — one Ops run over three
 VMs with six metrics can report 14 of them — while every other reason is counted **per resource**, once,

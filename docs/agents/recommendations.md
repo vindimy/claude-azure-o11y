@@ -28,8 +28,8 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
 - Shared helpers live in `recommend/ladder.py`: `downsize_in_family` / `next_smaller_in_family`
   (one step down a `FamilySkuCatalog` family, used by VM and PostgreSQL) and `fit_down` / `fit_up`
   (smallest ladder size that covers `current × P95/100 × headroom`, used by SQL Database, elastic
-  pools, and Managed Instance). Event Hubs sizes a contiguous 1..N unit ladder, so it uses a plain
-  `ceil`.
+  pools, Managed Instance, and Service Bus messaging units). Event Hubs, App Service Plan instances,
+  AKS node counts, and App Gateway instances size a contiguous 1..N ladder, so they use a plain `ceil`.
 - A type's SKU catalog is declared on its spec (`SPEC.catalog = CatalogSource("<file>.yaml",
   Model)`) and read with `config.catalog_for(KIND, Model)`; its knobs with
   `config.rules_for(KIND, Rules)`. Adding a type never edits `config/models.py` or the loader.
@@ -76,3 +76,31 @@ Thresholds below are the defaults in `config/thresholds/default.yaml`; `headroom
   `max(1, ceil(capacity × P95/100 × headroom))`. Standard→Basic is never recommended (needs capture,
   consumer-group, and retention checks). Dedicated is Ops-only.
 - **VNET subnets:** Ops-only (capacity, not cost).
+- **App Service Plan** (`recommend/appserviceplan.py`, knobs `min_instances`, `min_vcpu`, `headroom`): P95
+  CPU < 20 % and P95 memory < 40 %; peak is the larger. A plan with no apps → `delete`. Otherwise fewer
+  instances first (`max(min_instances, ceil(instances × peak/100 × headroom))`, not for elastic plans),
+  else the next smaller SKU in the family from `config/appservice-skus.yaml` when the peak still fits
+  after the vCPU ratio. Free/Shared plans are Ops-only. Confidence `medium`, `low` without memory data.
+- **AKS** (`recommend/aks.py`, knobs `min_nodes`, `min_vcpu`, `headroom`, catalog `vm-skus.yaml`): P95
+  node CPU < 20 % and P95 working-set memory < 30 %, cluster rollups. Per pool: fewer nodes (fixed pools)
+  or a lower autoscaler minimum, `max(min_nodes, ceil(current × peak/100 × headroom))`; a pool already at
+  `min_nodes` gets the next smaller node SKU in its family when the peak fits. `RecommendedSku` joins the
+  pool changes. Always `low`: the metric is cluster-level ("verify per node pool"); the autoscaler's
+  unneeded-node count is quoted when present.
+- **Azure Cache for Redis** (`recommend/redis.py`, knobs `min_capacity`, `headroom`, catalog
+  `config/redis-skus.yaml`): P95 CPU < 20 % and P95 used memory < 30 %. Next smaller size in the same
+  family (C or P) not below `min_capacity` whose memory covers `current_gb × P95 memory/100 × headroom`.
+  Premium→Standard is never recommended. `medium` with memory data, `low` without.
+- **Service Bus** (`recommend/servicebus.py`, knobs `headroom`, `min_units`, `messaging_units`): Premium
+  only; P95 `NamespaceCpuUsage` < 20 % and P95 `NamespaceMemoryUsage` < 30 %; `fit_down` over the
+  messaging-unit ladder `[1, 2, 4, 8, 16]`. Basic/Standard are Ops-only (`no_capacity_model`);
+  Premium→Standard is never recommended.
+- **Application Gateway** (`recommend/appgateway.py`, knobs `cu_per_instance` 10, `min_instances`,
+  `headroom`): v2 only; P95 `CapacityUnits` < 30 % of the reserved units (`SPEC.enrich` attaches
+  `reserved_capacity_units` = minimum or fixed instances × `cu_per_instance`). Target instances =
+  `max(min_instances, ceil(reserved × P95/100 × headroom / cu_per_instance))`, spelled as a new
+  autoscale range or fixed count. v1 and autoscale-minimum-0 gateways are Ops-only.
+- **Storage account** (`recommend/storage.py`, knobs `min_gib`, `target_tier`): Hot-tier StorageV2 /
+  BlobStorage accounts only; P95 hourly `Transactions` < 1000 (`missing_as_zero`, so idle hours count).
+  With `UsedCapacity` ≥ `min_gib`, recommend the `target_tier` (Cool) access tier or a lifecycle rule;
+  always `low` (account-level, retrieval and early-deletion charges are not modelled).

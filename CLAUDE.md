@@ -10,7 +10,8 @@ group, it reads built-in Azure Monitor metrics and writes one row per finding to
 Alerting and routing are built on those tables downstream; the function sends nothing itself. Supported
 types (`src/resource_types/`): VMs (platform metrics only; guest metrics come from DCRs elsewhere), Azure
 SQL Database, SQL Elastic Pool, SQL Managed Instance, PostgreSQL Flexible Server, Cosmos DB, Event Hubs,
-and VNET subnets. Owner: Dmitriy (Cloud Engineering).
+VNET subnets, App Service Plans, AKS clusters, Azure Cache for Redis, Service Bus, Application Gateway,
+and Storage accounts. Owner: Dmitriy (Cloud Engineering).
 
 ## Commands
 

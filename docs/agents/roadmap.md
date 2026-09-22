@@ -8,30 +8,24 @@ The MVP (VM `Percentage CPU`) and the seven types of the architecture table: VM 
 (memory, disk %), Azure SQL Database, SQL Elastic Pool, SQL Managed Instance, PostgreSQL Flexible Server,
 Cosmos DB, Event Hubs, VNET subnets (spec: `docs/superpowers/specs/2026-09-22-resource-types-design.md`).
 
+## Done (second round)
+
+Items 1–6 of the previous list (spec: `docs/superpowers/specs/2026-09-22-next-resource-types-design.md`):
+App Service Plans (`appserviceplan`), AKS clusters (`aks`), Azure Cache for Redis (`redis`), Service Bus
+namespaces (`servicebus`), Application Gateway (`appgateway`), Storage accounts (`storage`). They added
+three config-driven generalizations to `metrics/` (`dimension` filters, `percent_of_capacity`,
+`missing_as_zero`; see [thresholds](thresholds.md#metric-fields)) and no new permission.
+
 ## Next resource types (suggested order)
 
 Each is platform metrics or Resource Graph only, so it needs no new permission and no agent:
 
-1. **App Service Plans** (`Microsoft.Web/serverfarms`): `CpuPercentage`, `MemoryPercentage` hot;
-   cold → smaller tier / fewer instances. Common, expensive, rarely right-sized.
-2. **AKS node pools** (`Microsoft.ContainerService/managedClusters`):
-   `node_cpu_usage_percentage`, `node_memory_working_set_percentage`, `kube_pod_status_ready` hot;
-   cold → smaller node SKU or fewer nodes (per agent pool via the `node` dimension).
-3. **Azure Cache for Redis** (`Microsoft.Cache/redis`): `percentProcessorTime`, `usedmemorypercentage`,
-   `serverLoad`, `errors` hot; cold → smaller cache size / tier.
-4. **Service Bus namespaces** (`Microsoft.ServiceBus/namespaces`): `ThrottledRequests`,
-   `DeadletteredMessages`, `ServerErrors` hot (SLA); Premium `NamespaceCpuUsage`, cold → fewer messaging
-   units. Same shape as Event Hubs.
-5. **Application Gateway** (`Microsoft.Network/applicationGateways`): `UnhealthyHostCount`,
-   `FailedRequests`, `ResponseStatus` 5xx hot; v2 `CapacityUnits` / `ComputeUnits` P95 vs `minCapacity`
-   cold → lower minimum instance count.
-6. **Storage accounts** (`Microsoft.Storage/storageAccounts`): `Availability`, throttling
-   (`Transactions` split by `ResponseType` = `ServerBusyError`/`ThrottlingError`) hot; cost → lifecycle
-   tiering candidates from `UsedCapacity` growth. Needs the batch `filter` parameter for dimensions.
-7. **Orphaned resources** (Resource Graph only, zero metrics, pure FinOps): unattached managed disks,
+1. **Orphaned resources** (Resource Graph only, zero metrics, pure FinOps): unattached managed disks,
    unassociated public IPs and NICs, empty load balancers and app gateways, stopped-but-allocated VMs.
    Cheapest wins in an enterprise estate.
-8. **VM availability** (`VmAvailabilityMetric`) as an SLA signal on the existing VM type.
+2. **VM availability** (`VmAvailabilityMetric`) as an SLA signal on the existing VM type.
+3. **Azure Cache for Redis Enterprise** (`Microsoft.Cache/redisEnterprise`): a separate ARM type with its
+   own metrics; the `redis` type covers Basic/Standard/Premium only.
 
 ## Adding a resource type
 
@@ -74,6 +68,14 @@ If the type needs a new permission (everything so far is Reader + Monitoring Rea
   cost columns.
 - **Cosmos DB per-container evaluation** with the batch `filter` on `CollectionName`; today the
   account-level maximum drives the recommendation.
+- **AKS per-node-pool evaluation** with the batch `filter` on `nodepool`. Needs one metric response
+  split into several evaluated units, which the pipeline cannot do; today the cluster rollup drives a
+  per-pool recommendation marked "verify per node pool".
+- **App Gateway `ResponseStatus` 5xx** (`HttpStatusGroup` filter) as a share of all responses: the
+  filtered and unfiltered series of one raw metric cannot share a run mode today; `FailedRequests` /
+  `TotalRequests` is the Ops proxy.
+- **Storage tiering by capacity growth** (`UsedCapacity` slope) and per-container access patterns; today
+  the account-level transaction rate is the signal.
 - **VM guest metrics via LAW** (`law` identity requirement, reserved): only if a signal is missing from
   platform metrics; memory is covered by `Available Memory Percentage` now.
 - **Subnet utilization for VMSS-uniform NICs** (not in Resource Graph; see `docs/gotchas.md`).

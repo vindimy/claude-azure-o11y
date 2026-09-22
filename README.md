@@ -4,7 +4,8 @@ Scheduled Azure Function (Python, custom container) that evaluates built-in Azur
 every subscription under a management group and writes **Ops findings** (hot resources →
 `O11yOpsFindings_CL`) and **FinOps findings** (cold resources with a downsizing recommendation and saving →
 `O11yFinOpsFindings_CL`) to a Log Analytics workspace. Covers VMs, Azure SQL (databases, elastic pools,
-managed instances), PostgreSQL Flexible Server, Cosmos DB, Event Hubs, and VNET subnet capacity, all from
+managed instances), PostgreSQL Flexible Server, Cosmos DB, Event Hubs, VNET subnet capacity, App Service
+Plans, AKS clusters, Azure Cache for Redis, Service Bus, Application Gateway, and Storage accounts, all from
 platform metrics or Resource Graph, with no agents. Table schema:
 [schema/findings-tables.json](schema/findings-tables.json) · [docs/agents/findings.md](docs/agents/findings.md).
 
