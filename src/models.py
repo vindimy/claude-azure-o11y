@@ -49,10 +49,16 @@ class MetricPoint:
 
 @dataclass(frozen=True)
 class MetricRequest:
-    """One metric name with the aggregation whose value lands in MetricPoint.value."""
+    """One metric name with the aggregation whose value lands in MetricPoint.value.
+
+    `filter` is an OData dimension filter and `roll_up_by` the dimension it names; a filtered
+    metric travels in its own batch call because the API applies one filter to the whole call.
+    """
 
     name: str
     aggregation: str
+    filter: str | None = None
+    roll_up_by: str | None = None
 
 
 Series = dict[str, list[MetricPoint]]

@@ -94,3 +94,36 @@ def test_chunk() -> None:
     ids = [str(i) for i in range(120)]
     assert chunk(ids, 50) == [ids[:50], ids[50:100], ids[100:]]
     assert chunk([], 50) == []
+
+
+def test_filtered_request_sums_dimension_series_per_timestamp(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """With a dimension filter Azure may return one series per value; a count is their sum."""
+    hot = PREFIX + "vm-hot"
+    payload = load_fixture("metrics_batch_cpu.json")
+    metric = payload["values"][0]["value"][0]
+    metric["timeseries"].append(
+        {
+            "data": [
+                {"timeStamp": "2026-09-15T11:00:00Z", "average": 1.0},
+                {"timeStamp": "2026-09-15T11:02:00Z", "average": 2.0},
+            ]
+        }
+    )
+    throttled = MetricRequest("Percentage CPU", "Average", "ResponseType eq 'X'", "ResponseType")
+    with caplog.at_level(logging.WARNING, logger="metrics.batch"):
+        out = parse_batch_response(payload, [hot], [throttled])
+    assert [(p.timestamp.minute, p.value) for p in out[hot][CPU.name]] == [
+        (0, 96.0),
+        (1, 97.5),
+        (2, 2.0),
+    ]
+    assert not [r for r in caplog.records if "more than one timeseries" in r.message]
+
+
+def test_filtered_request_keeps_a_timestamp_with_no_value() -> None:
+    hot = PREFIX + "vm-hot"
+    payload = load_fixture("metrics_batch_cpu.json")
+    out = parse_batch_response(payload, [hot], [MetricRequest(CPU.name, "Average", "A eq 'b'")])
+    assert [p.value for p in out[hot][CPU.name]] == [95.0, 97.5, None]

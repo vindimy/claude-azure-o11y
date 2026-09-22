@@ -65,13 +65,17 @@ def chunk(ids: list[str], size: int) -> list[list[str]]:
     return [ids[i : i + size] for i in range(0, len(ids), size)]
 
 
-def _points(metric: dict[str, Any], aggregation: str) -> list[MetricPoint]:
+def _points(metric: dict[str, Any], aggregation: str, filtered: bool = False) -> list[MetricPoint]:
+    """The datapoints of one metric for `aggregation`.
+
+    An unfiltered metric returns one rollup series. A filtered one (`MetricRequest.filter`) asks
+    for `rollupby`, so it should too; if Azure still returns one series per dimension value they
+    are summed per timestamp, because a dimension filter is only used with count metrics.
+    """
     field = aggregation.lower()
-    out: list[MetricPoint] = []
     timeseries = metric.get("timeseries", [])
-    if len(timeseries) > 1:
-        # No configured metric is dimension-split, so Azure returns one rollup series. If one ever
-        # is, the concatenation below duplicates timestamps and skews mean/percentile/coverage.
+    if len(timeseries) > 1 and not filtered:
+        # Concatenation duplicates timestamps and skews mean/percentile/coverage; make it visible.
         log.warning(
             "metric returned more than one timeseries; datapoints are concatenated",
             extra={
@@ -79,11 +83,21 @@ def _points(metric: dict[str, Any], aggregation: str) -> list[MetricPoint]:
                 "timeseries": len(timeseries),
             },
         )
+    out: list[MetricPoint] = []
+    summed: dict[datetime, float | None] = {}
     for series in timeseries:
         for d in series.get("data", []):
             ts = datetime.fromisoformat(str(d["timeStamp"]).replace("Z", "+00:00"))
             v = d.get(field)
-            out.append(MetricPoint(ts, float(v) if v is not None else None))
+            value = float(v) if v is not None else None
+            if not filtered:
+                out.append(MetricPoint(ts, value))
+            elif value is not None:
+                summed[ts] = (summed.get(ts) or 0.0) + value
+            else:
+                summed.setdefault(ts, None)
+    if filtered:
+        out = [MetricPoint(ts, summed[ts]) for ts in sorted(summed)]
     return out
 
 
@@ -100,7 +114,7 @@ def parse_batch_response(
             req = wanted.get(name.lower())
             if req is None:
                 continue
-            result[rid][req.name] = _points(metric, req.aggregation)
+            result[rid][req.name] = _points(metric, req.aggregation, req.filter is not None)
 
     values = payload.get("values", [])
     if values and all("resourceid" in v for v in values):
@@ -139,6 +153,31 @@ class MetricsBatchClient:
         metrics: list[MetricRequest],
         window: MetricWindow,
     ) -> dict[str, Series]:
+        """Every requested metric for the chunk: one call per distinct dimension filter.
+
+        The API applies `filter` to every metric of a call and rejects metrics that lack the
+        dimension, so filtered metrics travel separately from the unfiltered rest (see
+        docs/gotchas.md). The series of every call are merged per resource.
+        """
+        result: dict[str, Series] = {rid: {} for rid in resource_ids}
+        for key in sorted({(m.filter, m.roll_up_by) for m in metrics}, key=str):
+            group = [m for m in metrics if (m.filter, m.roll_up_by) == key]
+            part = await self._query_group(
+                region, subscription_id, resource_ids, namespace, group, window
+            )
+            for rid, series in part.items():
+                result[rid].update(series)
+        return result
+
+    async def _query_group(
+        self,
+        region: str,
+        subscription_id: str,
+        resource_ids: list[str],
+        namespace: str,
+        metrics: list[MetricRequest],
+        window: MetricWindow,
+    ) -> dict[str, Series]:
         captured: dict[str, Any] = {}
 
         def hook(pipeline_response: Any) -> None:
@@ -159,6 +198,8 @@ class MetricsBatchClient:
                 timespan=(window.start, window.end),
                 granularity=window.granularity,
                 aggregations=sorted({m.aggregation for m in metrics}),
+                filter=metrics[0].filter,
+                roll_up_by=metrics[0].roll_up_by,
                 raw_response_hook=hook,
             )
         except HttpResponseError as e:

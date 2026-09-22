@@ -92,3 +92,12 @@ The `ops: PT5M` half of `granularity: {ops: PT5M, finops: PT1H}` is a choice, no
 Ops run never requests those two metrics. It keeps both windows on the metrics' native grain:
 `NormalizedRUConsumption` is reported per minute, the throughput inputs are not, and one grain per
 type reads the same in both modes.
+
+## Batch metrics: one `filter` per call, applied to every metric in it (2026-09-22)
+
+`metrics:getBatch` takes a single OData `filter` (and `rollupby`) for the whole call and rejects a
+metric that lacks the filtered dimension. `MetricsBatchClient.query` therefore groups the requests
+of a chunk by `(filter, rollupby)` and makes one `query_resources` call per group, merging the
+series per resource; the pipeline still sees one `query` per chunk. Configured through
+`dimension: {name, values}` on a metric (`docs/agents/thresholds.md`). SDK
+`azure-monitor-querymetrics` 1.0 exposes both as `filter=` and `roll_up_by=`.

@@ -31,9 +31,11 @@ column use; `metric_name` is Azure's name.
 | `ops_hot` | none | Ops threshold. Absent → not evaluated on Ops runs |
 | `finops_cold` | none | FinOps threshold. Absent → not evaluated on FinOps runs. A metric with neither is fetched on FinOps runs as a **recommender input** only (its latest value lands in `ColdFinding.inputs`) |
 | `applies_to` | `{}` | `{prop: [values]}`: evaluate only when every listed resource prop (set by the type's parser) has one of the values, compared case-insensitively as strings. A non-applicable metric is still fetched (one batch call covers a mixed chunk, so the request cannot be filtered per resource) but is never evaluated and never counted as a skip |
-| `derive` | none | Named derivation in `metrics/derive.py`: `ratio_percent` (`inputs[0] / inputs[1] × 100`) or `bytes_per_second_percent` (per-interval `Total` bytes ÷ interval seconds ÷ `capacity_prop` bytes/s × 100) |
+| `derive` | none | Named derivation in `metrics/derive.py`: `ratio_percent` (`inputs[0] / inputs[1] × 100`), `bytes_per_second_percent` (per-interval `Total` bytes ÷ interval seconds ÷ `capacity_prop` bytes/s × 100), or `percent_of_capacity` (`inputs[0] / capacity_prop × 100`, App Gateway capacity units vs reserved) |
 | `inputs` | `[]` | Raw metric names a derivation reads. For inventory-sourced types (VNET) the one entry is the **prop** that holds the value |
-| `capacity_prop` | none | Resource prop with the capacity used by `bytes_per_second_percent`; the metric is dropped when the prop is missing (e.g. Event Hubs Dedicated) |
+| `capacity_prop` | none | Resource prop with the capacity used by `bytes_per_second_percent` and `percent_of_capacity`; the metric is dropped when the prop is missing (e.g. Event Hubs Dedicated) |
+| `dimension` | none | `{name, values}`: restrict a dimensioned metric to those values (Storage `Transactions` by `ResponseType`). Rendered as the batch call's OData `filter` with `rollupby=name`, so one series comes back; a filtered metric travels in its own call (`docs/gotchas.md`). For count metrics only: several returned series are summed per timestamp. One raw metric may carry only one filter per run mode |
+| `missing_as_zero` | `false` | A returned interval with no value counted nothing: read it as `0` before evaluation (count metrics such as `Transactions`, where the idle case is the interesting one). Intervals Azure did not return at all stay absent, so coverage still guards a metric the resource lacks |
 
 Per type, `granularity: {ops: PT5M, finops: PT1H}` overrides `windows.<mode>.granularity` for
 metrics whose minimum grain is coarser than the default (Cosmos DB throughput metrics: PT5M).

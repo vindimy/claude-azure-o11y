@@ -5,7 +5,15 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, RootModel, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    RootModel,
+    field_validator,
+    model_validator,
+)
 
 from models import Resource
 
@@ -58,6 +66,20 @@ class Granularity(_Strict):
     finops: str | None = None
 
 
+class DimensionFilter(_Strict):
+    """Restrict a dimensioned metric to some values of one dimension (Storage `ResponseType`).
+
+    Rendered as the batch call's OData `filter`; `name` is also its `rollupby`, so Azure returns
+    the matching values as one series.
+    """
+
+    name: str
+    values: list[str] = Field(min_length=1)
+
+    def filter_string(self) -> str:
+        return " or ".join(f"{self.name} eq '{v}'" for v in self.values)
+
+
 class MetricThreshold(_Strict):
     """One metric of one resource type. See docs/agents/thresholds.md for every field."""
 
@@ -72,6 +94,12 @@ class MetricThreshold(_Strict):
     derive: str | None = None
     inputs: list[str] = []
     capacity_prop: str | None = None
+    dimension: DimensionFilter | None = None
+    missing_as_zero: bool = False
+
+    @property
+    def filter(self) -> str | None:
+        return self.dimension.filter_string() if self.dimension else None
 
     def applies(self, resource: Resource) -> bool:
         return all(
@@ -102,22 +130,29 @@ class ResourceTypeThresholds(_Strict):
         return next(iter(self.finops_metrics()), None)
 
     @model_validator(mode="after")
-    def _one_aggregation_per_raw_metric(self) -> ResourceTypeThresholds:
-        """One raw metric name per run mode may ask for only one aggregation.
+    def _one_request_per_raw_metric(self) -> ResourceTypeThresholds:
+        """One raw metric name per run mode may ask for only one aggregation and one filter.
 
         `metrics.derive.requests_for` de-duplicates the batch call by raw metric name, so a second
-        key naming the same metric with a different aggregation would be silently evaluated
-        against the first key's series. Fail at startup instead.
+        key naming the same metric with a different aggregation or dimension filter would be
+        silently evaluated against the first key's series. Fail at startup instead.
         """
         for mode in (self.ops_metrics(), {**self.finops_metrics(), **self.input_metrics()}):
-            seen: dict[str, tuple[str, str]] = {}
+            seen: dict[str, tuple[str, str, str | None]] = {}
             for key, m in mode.items():
                 for name in m.inputs if m.derive else [m.metric_name]:
-                    first_key, first_agg = seen.setdefault(name, (key, m.aggregation))
+                    first_key, first_agg, first_filter = seen.setdefault(
+                        name, (key, m.aggregation, m.filter)
+                    )
                     if first_agg != m.aggregation:
                         raise ValueError(
                             f"metric {name!r} is requested with two aggregations in one run "
                             f"mode: {first_key}={first_agg} and {key}={m.aggregation}"
+                        )
+                    if first_filter != m.filter:
+                        raise ValueError(
+                            f"metric {name!r} is requested with two dimension filters in one "
+                            f"run mode: {first_key}={first_filter!r} and {key}={m.filter!r}"
                         )
         return self
 
