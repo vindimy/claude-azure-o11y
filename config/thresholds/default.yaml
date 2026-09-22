@@ -51,32 +51,10 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
-  postgres:
-    namespace: Microsoft.DBforPostgreSQL/flexibleServers
-    metrics:
-      cpu:
-        metric_name: cpu_percent
-        ops_hot: 90
-        finops_cold: 20
-      memory:
-        metric_name: memory_percent
-        ops_hot: 90
-        finops_cold: 30
-      storage:
-        metric_name: storage_percent
-        ops_hot: 90
-      disk_iops:
-        metric_name: disk_iops_consumed_percentage
-        ops_hot: 90
-    recommend:
-      min_vcpu: 2
   sqldb:
     namespace: Microsoft.Sql/servers/databases
     metrics:
       # One utilization metric per purchasing model; `applies_to` picks the one that exists.
-  sqlpool:
-    namespace: Microsoft.Sql/servers/elasticPools
-    metrics:
       dtu:
         metric_name: dtu_consumption_percent
         applies_to: {purchasing_model: [dtu]}
@@ -99,12 +77,58 @@ resource_types:
         ops_hot: 90
       workers:
         metric_name: workers_percent
+        ops_hot: 90
+    recommend:
+      min_vcores: 2
+      headroom: 1.3
+  sqlpool:
+    namespace: Microsoft.Sql/servers/elasticPools
+    metrics:
+      dtu:
+        metric_name: dtu_consumption_percent
+        applies_to: {purchasing_model: [dtu]}
+        ops_hot: 90
+        finops_cold: 20
+      cpu:
+        metric_name: cpu_percent
+        applies_to: {purchasing_model: [vcore]}
+        ops_hot: 90
+        finops_cold: 20
       storage:
         metric_name: storage_percent
         ops_hot: 90
     recommend:
       min_vcores: 2
       headroom: 1.3
+  sqlmi:
+    namespace: Microsoft.Sql/managedInstances
+    metrics:
+      cpu: {metric_name: avg_cpu_percent, ops_hot: 90, finops_cold: 20}
+      storage:
+        metric_name: storage_percent
+        derive: ratio_percent
+        inputs: [storage_space_used_mb, reserved_storage_mb]
+        ops_hot: 90
+    recommend: {min_vcores: 4, headroom: 1.3}
+  postgres:
+    namespace: Microsoft.DBforPostgreSQL/flexibleServers
+    metrics:
+      cpu:
+        metric_name: cpu_percent
+        ops_hot: 90
+        finops_cold: 20
+      memory:
+        metric_name: memory_percent
+        ops_hot: 90
+        finops_cold: 30
+      storage:
+        metric_name: storage_percent
+        ops_hot: 90
+      disk_iops:
+        metric_name: disk_iops_consumed_percentage
+        ops_hot: 90
+    recommend:
+      min_vcpu: 2
   cosmos:
     namespace: Microsoft.DocumentDB/databaseAccounts
     # ProvisionedThroughput/AutoscaleMaxThroughput reject PT1M (see docs/gotchas.md).
@@ -131,6 +155,33 @@ resource_types:
       min_ru: 400
       headroom: 1.3
       autoscale_ratio: 3.0
+  eventhub:
+    namespace: Microsoft.EventHub/namespaces
+    metrics:
+      throttled:
+        metric_name: ThrottledRequests
+        unit: Count
+        aggregation: Total
+        reduce: sum
+        ops_hot: 1
+      # Premium only: dedicated CPU per PU: Basic/Standard are multi-tenant with no CPU metric.
+      cpu:
+        metric_name: NamespaceCpuUsage
+        applies_to:
+          tier: [Premium]
+        ops_hot: 90
+      ingress:
+        metric_name: IncomingBytes
+        unit: Percent
+        aggregation: Total
+        derive: bytes_per_second_percent
+        inputs: [IncomingBytes]
+        capacity_prop: capacity_bytes_per_second
+        applies_to:
+          tier: [Basic, Standard, Premium]
+        finops_cold: 30
+    recommend:
+      headroom: 1.3
   vnet:
     namespace: Microsoft.Network/virtualNetworks
     metrics:

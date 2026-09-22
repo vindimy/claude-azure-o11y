@@ -16,7 +16,8 @@ def test_load_default_config(config_dir: Path) -> None:
     vm = cfg.thresholds.resource_types["vm"]
     assert vm.metrics["cpu"].ops_hot == 90 and vm.metrics["cpu"].finops_cold == 20
     assert isinstance(cfg.rules["vm"], VmRecommendRules) and cfg.rules["vm"].min_vcpu == 1
-    assert cfg.sql_skus.vcore == {}
+    assert cfg.sql_skus.vcore["managed_instance"] == [4, 8, 16, 24, 32, 40, 64, 80]
+    assert cfg.sql_skus.dtu["Standard"]["S3"] == 100 and cfg.sql_skus.pool_edtu["Basic"][0] == 50
     assert cfg.postgres_skus.get("Standard_D4ds_v5") is not None
     assert cfg.thresholds.tags.exclude == "o11y-exclude"
     assert "cloud-engineering" in cfg.assignment_groups.root
