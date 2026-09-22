@@ -268,3 +268,59 @@ async def test_failing_type_does_not_stop_the_run(
     assert [r["ResourceName"] for r in rows(tmp_path, OPS_TABLE) if r["MetricKey"] == "cpu"] == [
         "vm-hot"
     ]
+
+
+async def test_ops_run_writes_one_row_per_hot_metric(tmp_path: Path, config_dir: Path) -> None:
+    settings, clients, metrics = make(tmp_path, config_dir, resource_types="vm")
+    summary = await run(settings, load_config(config_dir, "mg-prod"), clients, "ops", now=NOW)
+    ops = rows(tmp_path, OPS_TABLE)
+    assert sorted((r["ResourceName"], r["MetricKey"]) for r in ops) == [
+        ("vm-hot", "cpu"),
+        ("vm-hot", "memory"),
+    ]
+    memory = next(r for r in ops if r["MetricKey"] == "memory")
+    assert memory["MetricName"] == "Available Memory Percentage"
+    assert memory["ObservedValue"] == 5.0 and memory["Threshold"] == 10
+    # 4 disk metrics × 3 running VMs return nothing in the fake, plus vm-nodata's cpu and memory
+    assert summary.skips["no_ops_data"] == 14
+    assert summary.findings == 2 and summary.by_type["vm"].findings == 2
+    # every ops metric of the type travels in the one batch call
+    assert [m.name for m in metrics.requests[0]] == [
+        "Percentage CPU",
+        "Available Memory Percentage",
+        "OS Disk IOPS Consumed Percentage",
+        "OS Disk Bandwidth Consumed Percentage",
+        "VM Uncached IOPS Consumed Percentage",
+        "VM Uncached Bandwidth Consumed Percentage",
+    ]
+
+
+async def test_finops_row_carries_memory_clause(tmp_path: Path, config_dir: Path) -> None:
+    settings, clients, metrics = make(tmp_path, config_dir, resource_types="vm")
+    await run(settings, load_config(config_dir, "mg-prod"), clients, "finops", now=NOW)
+    [fin] = rows(tmp_path, FINOPS_TABLE)
+    assert fin["Confidence"] == "medium" and "peak use 20%" in fin["Reason"]
+    assert fin["MetricKey"] == "cpu" and fin["Percentile"] == 95
+    requested = [m.name for m in metrics.requests[0]]
+    assert requested == ["Percentage CPU", "Available Memory Percentage"]
+
+
+async def test_finops_without_memory_data_is_low_confidence(
+    tmp_path: Path, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(FAKE_VALUES, "vm-cold", {"Percentage CPU": 4.0})
+    settings, clients, _ = make(tmp_path, config_dir, resource_types="vm")
+    await run(settings, load_config(config_dir, "mg-prod"), clients, "finops", now=NOW)
+    [fin] = rows(tmp_path, FINOPS_TABLE)
+    assert fin["Confidence"] == "low" and "Memory not evaluated" in fin["Reason"]
+
+
+async def test_finops_busy_memory_blocks_finding(
+    tmp_path: Path, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(
+        FAKE_VALUES, "vm-cold", {"Percentage CPU": 4.0, "Available Memory Percentage": 15.0}
+    )
+    settings, clients, _ = make(tmp_path, config_dir, resource_types="vm")
+    summary = await run(settings, load_config(config_dir, "mg-prod"), clients, "finops", now=NOW)
+    assert summary.findings == 0 and rows(tmp_path, FINOPS_TABLE) == []

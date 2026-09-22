@@ -16,6 +16,10 @@ windows:
     aggregation: average
     percentile: 95
     min_coverage: 0.5
+# Per resource type: the Azure Monitor namespace, one block per metric key, and the recommender's
+# knobs. Metric fields are documented in docs/agents/thresholds.md. A metric with `ops_hot` is
+# evaluated on Ops runs, one with `finops_cold` on FinOps runs; a metric with neither is fetched
+# for the recommender only. Tag overrides: o11y-threshold-<key>-hot / -cold.
 resource_types:
   vm:
     namespace: Microsoft.Compute/virtualMachines
@@ -25,5 +29,25 @@ resource_types:
         unit: Percent
         ops_hot: 90
         finops_cold: 20
+      memory:
+        # Platform metric (no guest agent). Low is hot; FinOps takes the P5 (peak use = 100 - P5).
+        metric_name: Available Memory Percentage
+        unit: Percent
+        hot_when: below
+        ops_hot: 10
+        finops_cold: 70
+      # Disk metrics apply to premium-storage-capable sizes only; others skip with no_ops_data.
+      os_disk_iops:
+        metric_name: OS Disk IOPS Consumed Percentage
+        ops_hot: 90
+      os_disk_bandwidth:
+        metric_name: OS Disk Bandwidth Consumed Percentage
+        ops_hot: 90
+      vm_uncached_iops:
+        metric_name: VM Uncached IOPS Consumed Percentage
+        ops_hot: 90
+      vm_uncached_bandwidth:
+        metric_name: VM Uncached Bandwidth Consumed Percentage
+        ops_hot: 90
     recommend:
       min_vcpu: 1
