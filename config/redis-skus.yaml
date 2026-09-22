@@ -1,0 +1,14 @@
+# Azure Cache for Redis size catalog used by recommend/redis.py: memory per size (GB). Basic and
+# Standard share the C family, Premium is the P family. Extend as sizes appear in inventory.
+C0: {family: C, memory_gb: 0.25}
+C1: {family: C, memory_gb: 1}
+C2: {family: C, memory_gb: 2.5}
+C3: {family: C, memory_gb: 6}
+C4: {family: C, memory_gb: 13}
+C5: {family: C, memory_gb: 26}
+C6: {family: C, memory_gb: 53}
+P1: {family: P, memory_gb: 6}
+P2: {family: P, memory_gb: 13}
+P3: {family: P, memory_gb: 26}
+P4: {family: P, memory_gb: 53}
+P5: {family: P, memory_gb: 120}

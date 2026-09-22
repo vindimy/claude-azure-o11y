@@ -7,6 +7,7 @@ from resource_types import (
     cosmos,
     eventhub,
     postgres,
+    redis,
     servicebus,
     sqldb,
     sqlmi,
@@ -27,4 +28,5 @@ TYPES: dict[str, ResourceTypeSpec] = {
     vnet.SPEC.kind: vnet.SPEC,
     servicebus.SPEC.kind: servicebus.SPEC,
     appserviceplan.SPEC.kind: appserviceplan.SPEC,
+    redis.SPEC.kind: redis.SPEC,
 }

@@ -247,3 +247,14 @@ resource_types:
       min_instances: 1
       min_vcpu: 1
       headroom: 1.3
+  redis:
+    namespace: Microsoft.Cache/redis
+    # Basic/Standard/Premium only (Enterprise is another ARM type). Clustered Premium caches report
+    # per-shard series under ShardId; the resource-level rollup Azure returns is used as-is.
+    metrics:
+      cpu: {metric_name: percentProcessorTime, ops_hot: 90, finops_cold: 20}
+      memory: {metric_name: usedmemorypercentage, ops_hot: 90, finops_cold: 30}
+      server_load: {metric_name: serverLoad, ops_hot: 90}
+      # `errors` is split by ErrorType; the unfiltered series is the max over every error type.
+      errors: {metric_name: errors, unit: Count, aggregation: Maximum, reduce: max, ops_hot: 1}
+    recommend: {min_capacity: 0, headroom: 1.3}

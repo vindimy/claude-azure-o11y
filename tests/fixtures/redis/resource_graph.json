@@ -1,0 +1,12 @@
+{
+  "totalRecords": 4,
+  "count": 4,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/redis-cold", "name": "redis-cold", "subscriptionId": "s1", "resourceGroup": "rg-cache-prod", "location": "eastus", "tags": {"car_id": "300"}, "tier": "Standard", "family": "C", "capacity": 2, "state": "Succeeded", "shards": null, "redisVersion": "6.0"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/redis-creating", "name": "redis-creating", "subscriptionId": "s1", "resourceGroup": "rg-cache-prod", "location": "eastus", "tags": {}, "tier": "Basic", "family": "C", "capacity": 0, "state": "Creating", "shards": null, "redisVersion": "6.0"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/redis-hot", "name": "redis-hot", "subscriptionId": "s1", "resourceGroup": "rg-cache-prod", "location": "eastus", "tags": {"car_id": "300", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "Standard", "family": "C", "capacity": 1, "state": "Succeeded", "shards": null, "redisVersion": "6.0"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/redis-premium", "name": "redis-premium", "subscriptionId": "s1", "resourceGroup": "rg-cache-prod", "location": "eastus", "tags": {"car_id": "300"}, "tier": "Premium", "family": "P", "capacity": 2, "state": "Succeeded", "shards": 3, "redisVersion": "6.0"}
+  ]
+}
