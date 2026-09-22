@@ -29,10 +29,10 @@ TYPES: dict[str, ResourceTypeSpec] = {
     cosmos.SPEC.kind: cosmos.SPEC,
     eventhub.SPEC.kind: eventhub.SPEC,
     vnet.SPEC.kind: vnet.SPEC,
-    servicebus.SPEC.kind: servicebus.SPEC,
     appserviceplan.SPEC.kind: appserviceplan.SPEC,
-    redis.SPEC.kind: redis.SPEC,
     aks.SPEC.kind: aks.SPEC,
-    storage.SPEC.kind: storage.SPEC,
+    redis.SPEC.kind: redis.SPEC,
+    servicebus.SPEC.kind: servicebus.SPEC,
     appgateway.SPEC.kind: appgateway.SPEC,
+    storage.SPEC.kind: storage.SPEC,
 }
