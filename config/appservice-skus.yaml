@@ -1,0 +1,32 @@
+# App Service Plan SKU catalog used by recommend/appserviceplan.py. Family ladders are ordered by
+# vcpu; extend as SKUs appear in inventory. Free (F1) and Shared (D1) have no capacity model.
+B1:    {family: B, vcpu: 1, memory_gib: 1.75}
+B2:    {family: B, vcpu: 2, memory_gib: 3.5}
+B3:    {family: B, vcpu: 4, memory_gib: 7}
+S1:    {family: S, vcpu: 1, memory_gib: 1.75}
+S2:    {family: S, vcpu: 2, memory_gib: 3.5}
+S3:    {family: S, vcpu: 4, memory_gib: 7}
+P1v2:  {family: Pv2, vcpu: 1, memory_gib: 3.5}
+P2v2:  {family: Pv2, vcpu: 2, memory_gib: 7}
+P3v2:  {family: Pv2, vcpu: 4, memory_gib: 14}
+P0v3:  {family: Pv3, vcpu: 1, memory_gib: 4}
+P1v3:  {family: Pv3, vcpu: 2, memory_gib: 8}
+P2v3:  {family: Pv3, vcpu: 4, memory_gib: 16}
+P3v3:  {family: Pv3, vcpu: 8, memory_gib: 32}
+P1mv3: {family: Pmv3, vcpu: 2, memory_gib: 16}
+P2mv3: {family: Pmv3, vcpu: 4, memory_gib: 32}
+P3mv3: {family: Pmv3, vcpu: 8, memory_gib: 64}
+P4mv3: {family: Pmv3, vcpu: 16, memory_gib: 128}
+P5mv3: {family: Pmv3, vcpu: 32, memory_gib: 256}
+I1v2:  {family: Iv2, vcpu: 2, memory_gib: 8}
+I2v2:  {family: Iv2, vcpu: 4, memory_gib: 16}
+I3v2:  {family: Iv2, vcpu: 8, memory_gib: 32}
+I4v2:  {family: Iv2, vcpu: 16, memory_gib: 64}
+I5v2:  {family: Iv2, vcpu: 32, memory_gib: 128}
+I6v2:  {family: Iv2, vcpu: 64, memory_gib: 256}
+EP1:   {family: EP, vcpu: 1, memory_gib: 3.5}
+EP2:   {family: EP, vcpu: 2, memory_gib: 7}
+EP3:   {family: EP, vcpu: 4, memory_gib: 14}
+WS1:   {family: WS, vcpu: 1, memory_gib: 3.5}
+WS2:   {family: WS, vcpu: 2, memory_gib: 7}
+WS3:   {family: WS, vcpu: 4, memory_gib: 14}

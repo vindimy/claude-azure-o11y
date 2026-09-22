@@ -235,3 +235,15 @@ resource_types:
       min_units: 1
       # The Premium messaging-unit ladder; extend here if Azure adds a size.
       messaging_units: [1, 2, 4, 8, 16]
+  appserviceplan:
+    namespace: Microsoft.Web/serverfarms
+    # Plan-level shares across every instance. Consumption/Flex plans are excluded in inventory.
+    metrics:
+      cpu: {metric_name: CpuPercentage, ops_hot: 90, finops_cold: 20}
+      memory: {metric_name: MemoryPercentage, ops_hot: 90, finops_cold: 40}
+      # Requests waiting for a worker: any sustained queue means the plan is saturated.
+      http_queue: {metric_name: HttpQueueLength, unit: Count, ops_hot: 100}
+    recommend:
+      min_instances: 1
+      min_vcpu: 1
+      headroom: 1.3

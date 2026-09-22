@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from resource_types import (
+    appserviceplan,
     cosmos,
     eventhub,
     postgres,
@@ -25,4 +26,5 @@ TYPES: dict[str, ResourceTypeSpec] = {
     eventhub.SPEC.kind: eventhub.SPEC,
     vnet.SPEC.kind: vnet.SPEC,
     servicebus.SPEC.kind: servicebus.SPEC,
+    appserviceplan.SPEC.kind: appserviceplan.SPEC,
 }
