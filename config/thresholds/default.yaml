@@ -258,3 +258,32 @@ resource_types:
       # `errors` is split by ErrorType; the unfiltered series is the max over every error type.
       errors: {metric_name: errors, unit: Count, aggregation: Maximum, reduce: max, ops_hot: 1}
     recommend: {min_capacity: 0, headroom: 1.3}
+  aks:
+    namespace: Microsoft.ContainerService/managedClusters
+    # Cluster-level rollups: the node/nodepool dimensions are not filtered, so each value is the
+    # average across every node. The cluster_autoscaler_* metrics only report when the cluster
+    # autoscaler is on; clusters without it skip them with no data.
+    metrics:
+      node_cpu:
+        metric_name: node_cpu_usage_percentage
+        ops_hot: 90
+        finops_cold: 20
+      node_memory:
+        metric_name: node_memory_working_set_percentage
+        ops_hot: 90
+        finops_cold: 30
+      node_disk:
+        metric_name: node_disk_usage_percentage
+        ops_hot: 90
+      unschedulable_pods:
+        metric_name: cluster_autoscaler_unschedulable_pods_count
+        unit: Count
+        ops_hot: 1
+      # No thresholds: fetched on FinOps runs so the recommender can cite the autoscaler's view.
+      unneeded_nodes:
+        metric_name: cluster_autoscaler_unneeded_nodes_count
+        unit: Count
+    recommend:
+      min_nodes: 1
+      min_vcpu: 2
+      headroom: 1.3

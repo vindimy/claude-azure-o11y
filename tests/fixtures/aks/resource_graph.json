@@ -1,0 +1,11 @@
+{
+  "totalRecords": 4,
+  "count": 4,
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot", "name": "aks-hot", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "Standard", "powerState": "Running", "k8sVersion": "1.30.4", "pools": [{"name": "system", "vmSize": "Standard_D4s_v5", "count": 3, "mode": "System", "enableAutoScaling": false}, {"name": "userpool", "vmSize": "Standard_D8s_v5", "count": 2, "mode": "User", "enableAutoScaling": true, "minCount": 2, "maxCount": 5}]},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-cold", "name": "aks-cold", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "tier": "Standard", "powerState": "Running", "k8sVersion": "1.30.4", "pools": [{"name": "system", "vmSize": "Standard_D4s_v5", "count": 3, "mode": "System", "enableAutoScaling": false}, {"name": "userpool", "vmSize": "Standard_D8s_v5", "count": 2, "mode": "User", "enableAutoScaling": true, "minCount": 2, "maxCount": 5}]},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-stopped", "name": "aks-stopped", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "tier": "Free", "powerState": "Stopped", "k8sVersion": "1.29.8", "pools": [{"name": "system", "vmSize": "Standard_D2s_v5", "count": 1, "mode": "System", "enableAutoScaling": false}]},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-nopools", "name": "aks-nopools", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "tier": "Free", "powerState": "Running", "k8sVersion": "1.30.4", "pools": null}
+  ]
+}
