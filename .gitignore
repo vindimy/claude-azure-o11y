@@ -57,3 +57,6 @@ vm.env
 # Superpowers scratch (SDD ledgers, briefs, review packages)
 .superpowers/
 .claude/worktrees/
+
+# Gemini CLI local config
+.gemini/
