@@ -51,6 +51,10 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
+  sqldb:
+    namespace: Microsoft.Sql/servers/databases
+    metrics:
+      # One utilization metric per purchasing model; `applies_to` picks the one that exists.
   sqlpool:
     namespace: Microsoft.Sql/servers/elasticPools
     metrics:
@@ -64,6 +68,18 @@ resource_types:
         applies_to: {purchasing_model: [vcore]}
         ops_hot: 90
         finops_cold: 20
+      app_cpu:
+        # Serverless bills on app CPU; auto-pause already handles idleness, so Ops only.
+        metric_name: app_cpu_percent
+        applies_to: {purchasing_model: [serverless]}
+        ops_hot: 90
+      storage:
+        # Hyperscale storage grows on demand and reports no storage_percent.
+        metric_name: storage_percent
+        applies_to: {hyperscale: ["false"]}
+        ops_hot: 90
+      workers:
+        metric_name: workers_percent
       storage:
         metric_name: storage_percent
         ops_hot: 90
