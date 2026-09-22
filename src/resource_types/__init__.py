@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from resource_types import cosmos, eventhub, postgres, sqldb, sqlmi, sqlpool, vm, vnet
+from resource_types import aks, cosmos, eventhub, postgres, sqldb, sqlmi, sqlpool, vm, vnet
 from resource_types.registry import ResourceTypeSpec
 
 TYPES: dict[str, ResourceTypeSpec] = {
@@ -14,4 +14,5 @@ TYPES: dict[str, ResourceTypeSpec] = {
     cosmos.SPEC.kind: cosmos.SPEC,
     eventhub.SPEC.kind: eventhub.SPEC,
     vnet.SPEC.kind: vnet.SPEC,
+    aks.SPEC.kind: aks.SPEC,
 }
