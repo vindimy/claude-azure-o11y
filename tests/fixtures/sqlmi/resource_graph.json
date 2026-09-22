@@ -1,0 +1,10 @@
+{
+  "totalRecords": 2,
+  "count": 2,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-data-prod/providers/Microsoft.Sql/managedInstances/sqlmi-1", "name": "sqlmi-1", "subscriptionId": "s1", "resourceGroup": "rg-data-prod", "location": "eastus", "tags": {"car_id": "200", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "GeneralPurpose", "skuName": "GP_Gen5", "vcores": 8, "storageGb": 512, "state": "Ready"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-data-prod/providers/Microsoft.Sql/managedInstances/sqlmi-stopped", "name": "sqlmi-stopped", "subscriptionId": "s1", "resourceGroup": "rg-data-prod", "location": "eastus", "tags": {"car_id": "200"}, "tier": "GeneralPurpose", "skuName": "GP_Gen5", "vcores": 8, "storageGb": 512, "state": "Stopped"}
+  ]
+}

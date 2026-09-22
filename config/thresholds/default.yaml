@@ -51,3 +51,13 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
+  sqlmi:
+    namespace: Microsoft.Sql/managedInstances
+    metrics:
+      cpu: {metric_name: avg_cpu_percent, ops_hot: 90, finops_cold: 20}
+      storage:
+        metric_name: storage_percent
+        derive: ratio_percent
+        inputs: [storage_space_used_mb, reserved_storage_mb]
+        ops_hot: 90
+    recommend: {min_vcores: 4, headroom: 1.3}
