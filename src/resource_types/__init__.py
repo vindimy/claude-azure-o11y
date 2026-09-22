@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from resource_types import (
     aks,
+    appgateway,
     appserviceplan,
     cosmos,
     eventhub,
@@ -33,4 +34,5 @@ TYPES: dict[str, ResourceTypeSpec] = {
     redis.SPEC.kind: redis.SPEC,
     aks.SPEC.kind: aks.SPEC,
     storage.SPEC.kind: storage.SPEC,
+    appgateway.SPEC.kind: appgateway.SPEC,
 }

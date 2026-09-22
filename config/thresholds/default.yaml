@@ -320,3 +320,39 @@ resource_types:
     recommend:
       min_gib: 100
       target_tier: Cool
+  appgateway:
+    namespace: Microsoft.Network/applicationGateways
+    metrics:
+      unhealthy_hosts:
+        metric_name: UnhealthyHostCount
+        unit: Count
+        ops_hot: 1
+      # ResponseStatus 5xx needs a dimension filter on HttpStatusGroup that would collide with an
+      # unfiltered ResponseStatus in the same mode; FailedRequests is the 5xx proxy.
+      failed_requests:
+        metric_name: FailedRequestPercentage
+        aggregation: Total
+        derive: ratio_percent
+        inputs: [FailedRequests, TotalRequests]
+        ops_hot: 5
+      # v1 only: v2 gateways report capacity units, not CPU.
+      cpu:
+        metric_name: CpuUtilization
+        applies_to:
+          v2: ["false"]
+        ops_hot: 90
+      # Consumed capacity units as a share of the reserved ones (instances × cu_per_instance).
+      capacity:
+        metric_name: CapacityUnitsPercentage
+        unit: Percent
+        derive: percent_of_capacity
+        inputs: [CapacityUnits]
+        capacity_prop: reserved_capacity_units
+        applies_to:
+          v2: ["true"]
+        finops_cold: 30
+    recommend:
+      # Azure reserves 10 capacity units per v2 instance.
+      cu_per_instance: 10
+      min_instances: 1
+      headroom: 1.3
