@@ -13,10 +13,11 @@ import pytest
 
 from config.loader import load_config
 from config.settings import Settings
-from models import Resource, Scope
+from metrics.batch import parse_batch_response
+from models import MetricRequest, Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, run
+from pipeline import UNPRICED_NOTE, Clients, run
 from resource_types.sqlmi import active
 from resource_types.sqlmi import parse as parse_sqlmi
 from tests.conftest import load_fixture
@@ -132,5 +133,21 @@ async def test_finops_run_recommends_smaller_vcore_tier(
     assert cold["ObservedValue"] == 4.0
     assert cold["RecommendedSku"] == "GP_Gen5 4 vCores"
     assert cold["Confidence"] == "medium"
-    assert "Pricing not implemented for SQL." in cold["Reason"]
+    assert cold["Reason"].endswith(UNPRICED_NOTE)
     assert cold["CurrentMonthlyCost"] is None and cold["ProjectedMonthlyCost"] is None
+
+
+def test_batch_response_maps_managed_instance_metrics() -> None:
+    """The recorded batch payload names the metrics exactly as thresholds config expects them."""
+    mi = (
+        "/subscriptions/s1/resourceGroups/rg-data-prod/providers/Microsoft.Sql/managedInstances/"
+        "sqlmi-1"
+    )
+    cpu = MetricRequest("avg_cpu_percent", "Average")
+    used = MetricRequest("storage_space_used_mb", "Average")
+    reserved = MetricRequest("reserved_storage_mb", "Average")
+    requests = [cpu, used, reserved]
+    out = parse_batch_response(load_fixture("sqlmi/metrics_batch.json"), [mi], requests)
+    assert [p.value for p in out[mi][cpu.name]] == [96.0, 97.0, None]
+    assert [p.value for p in out[mi][used.name]] == [950.0, 960.0]
+    assert [p.value for p in out[mi][reserved.name]] == [1000.0, 1000.0]

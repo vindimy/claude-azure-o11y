@@ -3,26 +3,16 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
 import httpx
-
-from models import Recommendation
 
 log = logging.getLogger(__name__)
 
 RETAIL_PRICES_URL = "https://prices.azure.com/api/retail/prices"
 HOURS_PER_MONTH = Decimal(730)
 _EXCLUDED_SKU_WORDS = ("spot", "low priority")
-
-
-def with_pricing(
-    rec: Recommendation, current: Decimal | None, projected: Decimal | None
-) -> Recommendation:
-    """Fill a recommendation's cost columns. Pure; type-agnostic, so it sits with the port."""
-    return replace(rec, current_monthly=current, projected_monthly=projected)
 
 
 def select_monthly_price(items: list[dict[str, Any]], os_type: str) -> Decimal | None:

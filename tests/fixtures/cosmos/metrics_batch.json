@@ -1,0 +1,141 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.DocumentDB/databaseAccounts",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/COSMOS-COLD",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/COSMOS-COLD/providers/Microsoft.Insights/metrics/NormalizedRUConsumption",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "NormalizedRUConsumption",
+            "localizedValue": "NormalizedRUConsumption"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "maximum": 12.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "maximum": 9.0
+                },
+                {
+                  "timeStamp": "2026-09-15T13:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/COSMOS-COLD/providers/Microsoft.Insights/metrics/ProvisionedThroughput",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "ProvisionedThroughput",
+            "localizedValue": "ProvisionedThroughput"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "maximum": 4000.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "maximum": 4000.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/COSMOS-COLD/providers/Microsoft.Insights/metrics/AutoscaleMaxThroughput",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "AutoscaleMaxThroughput",
+            "localizedValue": "AutoscaleMaxThroughput"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z"
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.DocumentDB/databaseAccounts",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-hot",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-hot/providers/Microsoft.Insights/metrics/NormalizedRUConsumption",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "NormalizedRUConsumption",
+            "localizedValue": "NormalizedRUConsumption"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "maximum": 96.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "maximum": 98.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-hot/providers/Microsoft.Insights/metrics/ThrottledRequestPercentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "ThrottledRequestPercentage",
+            "localizedValue": "ThrottledRequestPercentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 7.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

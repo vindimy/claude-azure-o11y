@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from config.models import AppConfig
-from models import ColdFinding, Recommendation, Resource, Skip
+from config.models import AppConfig, SqlSkuCatalog
+from models import ColdFinding, Recommendation, Resource
 from recommend.sqlpool import SqlPoolRecommendRules, recommend_sqlpool
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import ResourceTypeSpec, base_resource, require_state
+from resource_types.sqldb import DTU_TIERS, SQL_SKUS
 
 KIND = "sqlpool"
 ARM_TYPE = "microsoft.sql/servers/elasticpools"
 READY = "ready"
-DTU_TIERS = {"basic", "standard", "premium"}
 
 QUERY = """
 resources
@@ -32,16 +32,11 @@ def parse(row: dict[str, Any]) -> Resource:
     tier = str(row.get("tier") or "")
     sku_name = str(row.get("skuName") or "")
     capacity = int(row.get("capacity") or 0)
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=f"{sku_name} {capacity}",
-        tags=parse_tags(row),
         props={
             "tier": tier,
             "sku_name": sku_name,
@@ -52,17 +47,15 @@ def parse(row: dict[str, Any]) -> Resource:
     )
 
 
-def active(resource: Resource) -> Skip | None:
-    state = str(resource.prop("state", ""))
-    if state.lower() == READY:
-        return None
-    return Skip(resource.id, "not_ready", state or "unknown")
+active = require_state("state", READY, "not_ready")
 
 
 def recommend(finding: ColdFinding, config: AppConfig) -> Recommendation:
-    rules = config.rules_for(KIND)
-    assert isinstance(rules, SqlPoolRecommendRules)
-    return recommend_sqlpool(finding, config.sql_skus, rules)
+    return recommend_sqlpool(
+        finding,
+        config.catalog_for(KIND, SqlSkuCatalog),
+        config.rules_for(KIND, SqlPoolRecommendRules),
+    )
 
 
 SPEC = ResourceTypeSpec(
@@ -73,5 +66,5 @@ SPEC = ResourceTypeSpec(
     active=active,
     recommend=recommend,
     rules_model=SqlPoolRecommendRules,
-    priced=False,
+    catalog=SQL_SKUS,
 )

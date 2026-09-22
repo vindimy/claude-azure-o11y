@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, EmailStr, RootModel, field_validator, model_validator
 
 from models import Resource
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class _Strict(BaseModel):
@@ -165,16 +167,16 @@ class AssignmentGroups(RootModel[dict[str, AssignmentGroup]]):
         return None
 
 
-class VmSku(_Strict):
+class FamilySku(_Strict):
     family: str
     vcpu: int
     memory_gib: float
 
 
-class VmSkuCatalog(RootModel[dict[str, VmSku]]):
+class FamilySkuCatalog(RootModel[dict[str, FamilySku]]):
     """Family ladders keyed by SKU name: vm-skus.yaml for VMs, postgres-skus.yaml for PostgreSQL."""
 
-    def get(self, sku: str) -> VmSku | None:
+    def get(self, sku: str) -> FamilySku | None:
         for name, spec in self.root.items():
             if name.lower() == sku.lower():
                 return spec
@@ -186,7 +188,7 @@ class VmSkuCatalog(RootModel[dict[str, VmSku]]):
                 return name
         return None
 
-    def family_members(self, family: str) -> list[tuple[str, VmSku]]:
+    def family_members(self, family: str) -> list[tuple[str, FamilySku]]:
         members = [(n, s) for n, s in self.root.items() if s.family == family]
         return sorted(members, key=lambda item: (item[1].vcpu, item[1].memory_gib))
 
@@ -200,14 +202,27 @@ class SqlSkuCatalog(_Strict):
 
 
 class AppConfig(BaseModel):
+    """Everything under config/, validated. `rules` and `catalogs` are keyed by resource kind:
+    each type's `SPEC.rules_model` validates its `recommend:` block and `SPEC.catalog` names the
+    SKU catalog it reads, so adding a type touches neither this class nor the loader."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
     thresholds: Thresholds
     ignore: IgnoreConfig
     assignment_groups: AssignmentGroups
-    vm_skus: VmSkuCatalog
-    postgres_skus: VmSkuCatalog = VmSkuCatalog({})
-    sql_skus: SqlSkuCatalog = SqlSkuCatalog()
     rules: dict[str, BaseModel] = {}
+    catalogs: dict[str, BaseModel] = {}
 
-    def rules_for(self, kind: str) -> BaseModel:
-        return self.rules[kind]
+    def rules_for(self, kind: str, model: type[T]) -> T:
+        """The type's validated `recommend:` knobs, narrowed to its rules model."""
+        return _narrow(self.rules[kind], model, f"rules for {kind}")
+
+    def catalog_for(self, kind: str, model: type[T]) -> T:
+        """The type's SKU catalog, narrowed to its catalog model."""
+        return _narrow(self.catalogs[kind], model, f"catalog for {kind}")
+
+
+def _narrow(value: BaseModel, model: type[T], what: str) -> T:
+    if not isinstance(value, model):
+        raise TypeError(f"{what} is {type(value).__name__}, expected {model.__name__}")
+    return value

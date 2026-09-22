@@ -9,16 +9,28 @@ from pydantic import BaseModel, ConfigDict
 from models import ColdFinding, Recommendation
 
 # Every reason ends with this: Standard<->Basic needs capture/consumer-group/retention checks we
-# do not perform, and Event Hubs has no pricing support yet (recommend/pricing.py is VM-only).
-_NOTE = (
-    " Standard→Basic not evaluated (needs capture/consumer-group/retention checks). "
-    "Pricing not implemented for Event Hubs."
-)
+# do not perform.
+_NOTE = " Standard→Basic not evaluated (needs capture/consumer-group/retention checks)."
 
 
 class EventHubRecommendRules(BaseModel):
+    """`recommend:` knobs. The unit rates size the FinOps capacity model, not just the target:
+    Azure publishes 1 MB/s ingress per TU and quotes PU ingress as 5-10 MB/s (the default is the
+    conservative end)."""
+
     model_config = ConfigDict(extra="forbid")
     headroom: float = 1.3
+    mb_per_tu: float = 1
+    mb_per_pu: float = 5
+
+    def unit_mbps(self, tier: str) -> float | None:
+        """Ingress capacity of one unit of `tier`; None for Dedicated (no per-unit model)."""
+        lowered = tier.lower()
+        if lowered == "premium":
+            return self.mb_per_pu
+        if lowered in ("basic", "standard"):
+            return self.mb_per_tu
+        return None
 
 
 def unit_label(tier: str) -> str:
@@ -39,6 +51,8 @@ def recommend_eventhub(finding: ColdFinding, rules: EventHubRecommendRules) -> R
         f"P{finding.percentile} ingress {finding.observed:g}% of {capacity} {unit} over "
         f"{finding.lookback_days}d is below {finding.threshold:g}%."
     )
+    # Units form a contiguous 1..capacity ladder, so the smallest size that covers the observed
+    # share plus headroom is a plain ceiling rather than a `fit_down` over a catalog.
     target = max(1, ceil(capacity * finding.observed / 100 * rules.headroom))
     if target >= capacity:
         return Recommendation(

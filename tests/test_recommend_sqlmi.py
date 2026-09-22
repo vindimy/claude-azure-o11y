@@ -42,7 +42,7 @@ def finding(vcores: int, sku_name: str = "GP_Gen5", observed: float = 4.0) -> Co
 
 @pytest.fixture
 def catalog(config_dir: Path) -> SqlSkuCatalog:
-    return load_config(config_dir, "mg-x").sql_skus
+    return load_config(config_dir, "mg-x").catalog_for("sqlmi", SqlSkuCatalog)
 
 
 def test_recommends_next_smaller_vcore_tier(catalog: SqlSkuCatalog) -> None:
@@ -51,7 +51,7 @@ def test_recommends_next_smaller_vcore_tier(catalog: SqlSkuCatalog) -> None:
     assert rec.confidence == "medium"
     assert "P95 CPU 4% over 14d is below 20%." in rec.reason
     assert "4 vCores cover P95 with 1.3x headroom." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for SQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_already_at_min_vcores(catalog: SqlSkuCatalog) -> None:
@@ -59,7 +59,7 @@ def test_already_at_min_vcores(catalog: SqlSkuCatalog) -> None:
     assert rec.target_sku is None
     assert rec.confidence == "medium"
     assert "GP_Gen5 4 vCores is already at min_vcores=4." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for SQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_respects_min_vcores_floor(catalog: SqlSkuCatalog) -> None:
@@ -73,7 +73,7 @@ def test_zero_vcores_is_low_confidence(catalog: SqlSkuCatalog) -> None:
     assert rec.target_sku is None
     assert rec.confidence == "low"
     assert "vCore ladder or capacity unknown; cannot recommend." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for SQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_empty_ladder_is_low_confidence() -> None:

@@ -4,9 +4,10 @@ import shutil
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from config.loader import deep_merge, load_config
+from config.models import FamilySkuCatalog, SqlSkuCatalog
 from config.settings import Settings
 from recommend.vm import VmRecommendRules
 from resource_types import TYPES
@@ -18,9 +19,10 @@ def test_load_default_config(config_dir: Path) -> None:
     vm = cfg.thresholds.resource_types["vm"]
     assert vm.metrics["cpu"].ops_hot == 90 and vm.metrics["cpu"].finops_cold == 20
     assert isinstance(cfg.rules["vm"], VmRecommendRules) and cfg.rules["vm"].min_vcpu == 1
-    assert cfg.sql_skus.vcore["managed_instance"] == [4, 8, 16, 24, 32, 40, 64, 80]
-    assert cfg.sql_skus.dtu["Standard"]["S3"] == 100 and cfg.sql_skus.pool_edtu["Basic"][0] == 50
-    assert cfg.postgres_skus.get("Standard_D4ds_v5") is not None
+    sql = cfg.catalog_for("sqlmi", SqlSkuCatalog)
+    assert sql.vcore["managed_instance"] == [4, 8, 16, 24, 32, 40, 64, 80]
+    assert sql.dtu["Standard"]["S3"] == 100 and sql.pool_edtu["Basic"][0] == 50
+    assert cfg.catalog_for("postgres", FamilySkuCatalog).get("Standard_D4ds_v5") is not None
     assert cfg.thresholds.tags.exclude == "o11y-exclude"
     assert "cloud-engineering" in cfg.assignment_groups.root
 
@@ -30,6 +32,20 @@ def test_mg_overlay_merges_partial_file(config_dir: Path) -> None:
     rules = cfg.rules["vm"]
     assert isinstance(rules, VmRecommendRules) and rules.min_vcpu == 2
     assert cfg.thresholds.resource_types["vm"].metrics["cpu"].ops_hot == 90
+
+
+def test_catalogs_come_from_each_type_spec(config_dir: Path) -> None:
+    """Adding a type declares its catalog in SPEC; the loader and AppConfig do not change."""
+    cfg = load_config(config_dir, "mg-x")
+    assert set(cfg.catalogs) == {k for k, spec in TYPES.items() if spec.catalog is not None}
+    # sqldb, sqlpool, and sqlmi share sql-skus.yaml: one parse, one object
+    assert cfg.catalogs["sqldb"] is cfg.catalogs["sqlpool"] is cfg.catalogs["sqlmi"]
+    with pytest.raises(TypeError, match="catalog for vm"):
+        cfg.catalog_for("vm", SqlSkuCatalog)
+    with pytest.raises(TypeError, match="rules for vm"):
+        cfg.rules_for("vm", SqlSkuCatalog)
+    with pytest.raises(KeyError):
+        cfg.catalog_for("vnet", FamilySkuCatalog)
 
 
 def test_deep_merge_nested() -> None:
@@ -85,11 +101,13 @@ def test_one_raw_metric_with_two_aggregations_fails_startup(
         load_config(tmp_path, "mg-x")
 
 
-def _parsed_props(kind: str) -> set[str]:
+def _parsed_props(kind: str, rules: BaseModel) -> set[str]:
+    """Props as the pipeline sees them: parsed, then enriched with the type's rules."""
     name = "resource_graph_vms_page1.json" if kind == "vm" else f"{kind}/resource_graph.json"
+    spec = TYPES[kind]
     props: set[str] = set()
     for row in load_fixture(name)["data"]:
-        props |= set(TYPES[kind].parse(row).props)
+        props |= set(spec.enrich(spec.parse(row), rules).props)
     return props
 
 
@@ -97,7 +115,7 @@ def test_every_configured_prop_exists_in_the_parser_output(config_dir: Path) -> 
     """Spec §10: a misspelled prop resolves to "" and silently stops a metric being evaluated."""
     cfg = load_config(config_dir, "mg-prod")
     for kind, type_cfg in cfg.thresholds.resource_types.items():
-        props = _parsed_props(kind)
+        props = _parsed_props(kind, cfg.rules[kind])
         assert props, kind
         for key, metric in type_cfg.metrics.items():
             for prop in metric.applies_to:

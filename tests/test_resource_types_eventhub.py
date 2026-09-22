@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from config.loader import load_config
 from config.settings import Settings
-from models import Resource, Scope
+from metrics.batch import parse_batch_response
+from models import MetricRequest, Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, run
-from resource_types.eventhub import BYTES_PER_MB, KIND, UNIT_MBPS, finops_skip, parse
+from pipeline import UNPRICED_NOTE, Clients, run
+from recommend.eventhub import EventHubRecommendRules
+from resource_types.eventhub import BYTES_PER_MB, KIND, enrich, finops_skip, parse
 from tests.conftest import load_fixture
 from tests.test_pipeline import FAKE_VALUES, FakeMetrics, FakePricing, rows
 
@@ -21,6 +24,14 @@ NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 def eventhub_rows() -> list[dict[str, object]]:
     data: list[dict[str, object]] = load_fixture("eventhub/resource_graph.json")["data"]
     return data
+
+
+RULES = EventHubRecommendRules()
+
+
+def parsed(row: dict[str, Any]) -> Resource:
+    """What the pipeline sees: the parsed row plus the capacity model from the default rules."""
+    return enrich(parse(row), RULES)
 
 
 class FakeInventory:
@@ -53,31 +64,42 @@ def make(tmp_path: Path, config_dir: Path) -> tuple[Settings, Clients, FakeMetri
 # --- Parser -----------------------------------------------------------------
 
 
-def test_parse_standard_namespace_computes_capacity_bytes_per_second() -> None:
+def test_parse_standard_namespace_keeps_the_capacity_out_of_the_pure_parser() -> None:
     row = next(r for r in eventhub_rows() if r["name"] == "eh-standard")
     ns = parse(row)
     assert ns.kind == "eventhub" and ns.type == "microsoft.eventhub/namespaces"
     assert ns.sku == "Standard 4 TU"
     assert ns.prop("tier") == "Standard" and ns.prop("capacity") == 4
     assert ns.prop("auto_inflate") is True and ns.prop("max_tu") == 8
+    # The unit rate is config (recommend: mb_per_tu / mb_per_pu), so the parser cannot know it.
+    assert ns.prop("capacity_bytes_per_second") is None
+
+
+def test_enrich_computes_capacity_bytes_per_second_from_the_configured_rates() -> None:
+    row = next(r for r in eventhub_rows() if r["name"] == "eh-standard")
+    ns = parsed(row)
     # Azure quotes TU ingress as 1 decimal MB/s, so a MB here is 1_000_000 bytes.
-    assert ns.prop("capacity_bytes_per_second") == 4 * UNIT_MBPS["standard"] * 1_000_000
+    assert ns.prop("capacity_bytes_per_second") == 4 * 1 * 1_000_000
     assert BYTES_PER_MB == 1_000_000
+    assert ns.prop("capacity") == 4 and ns.sku == "Standard 4 TU"  # everything else untouched
+    tuned = enrich(parse(row), EventHubRecommendRules(mb_per_tu=2))
+    assert tuned.prop("capacity_bytes_per_second") == 4 * 2 * BYTES_PER_MB
 
 
-def test_parse_premium_namespace_uses_pu_unit_and_conservative_mbps() -> None:
+def test_enrich_premium_namespace_uses_the_pu_rate() -> None:
     row = next(r for r in eventhub_rows() if r["name"] == "eh-premium")
-    ns = parse(row)
+    ns = parsed(row)
     assert ns.sku == "Premium 1 PU"
-    assert ns.prop("capacity_bytes_per_second") == 1 * UNIT_MBPS["premium"] * BYTES_PER_MB
-    assert UNIT_MBPS["premium"] == 5  # conservative end of the quoted 5-10 MB/s per PU
+    assert ns.prop("capacity_bytes_per_second") == 1 * 5 * BYTES_PER_MB
 
 
-def test_parse_dedicated_namespace_has_no_capacity_model() -> None:
+def test_enrich_dedicated_or_zero_capacity_namespace_has_no_capacity_model() -> None:
     row = next(r for r in eventhub_rows() if r["name"] == "eh-dedicated")
-    ns = parse(row)
+    ns = parsed(row)
     assert ns.sku == "Dedicated"
     assert ns.prop("capacity_bytes_per_second") is None
+    standard = next(r for r in eventhub_rows() if r["name"] == "eh-standard")
+    assert parsed({**standard, "capacity": 0}).prop("capacity_bytes_per_second") is None
 
 
 def test_parse_handles_missing_fields() -> None:
@@ -93,7 +115,7 @@ def test_parse_handles_missing_fields() -> None:
         "autoInflate": None,
         "maxTu": None,
     }
-    ns = parse(row)
+    ns = parsed(row)
     assert ns.tags == {} and ns.sku == "" and ns.prop("capacity_bytes_per_second") is None
 
 
@@ -111,9 +133,9 @@ def test_parse_is_case_insensitive_about_the_tier_and_keeps_its_casing() -> None
         "autoInflate": None,
         "maxTu": None,
     }
-    ns = parse(row)
+    ns = parsed(row)
     assert ns.sku == "premium 1 PU"
-    assert ns.prop("capacity_bytes_per_second") == UNIT_MBPS["premium"] * BYTES_PER_MB
+    assert ns.prop("capacity_bytes_per_second") == 5 * BYTES_PER_MB
     assert finops_skip(parse({**row, "tier": "dedicated"})) is not None
     assert parse({**row, "tier": "dedicated"}).sku == "dedicated"
 
@@ -173,8 +195,28 @@ async def test_finops_run_recommends_fewer_units_for_cold_ingress(
     assert "already at the smallest size" not in cold["Reason"]
     assert cold["Reason"].endswith(
         "Standard→Basic not evaluated (needs capture/consumer-group/retention checks). "
-        "Pricing not implemented for Event Hubs."
+        + UNPRICED_NOTE
     )
     # Not priced: no SKU catalog, no Retail Prices lookups for Event Hubs.
     assert cold["CurrentMonthlyCost"] is None and cold["ProjectedMonthlyCost"] is None
     assert [m.name for m in metrics.requests[0]] == ["IncomingBytes"]
+
+
+def test_batch_response_maps_event_hubs_totals() -> None:
+    """The recorded batch payload names the metrics exactly as thresholds config expects them."""
+    prefix = (
+        "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/"
+        "namespaces/"
+    )
+    standard, premium = prefix + "eh-standard", prefix + "eh-premium"
+    throttled = MetricRequest("ThrottledRequests", "Total")
+    ingress = MetricRequest("IncomingBytes", "Total")
+    cpu = MetricRequest("NamespaceCpuUsage", "Average")
+    out = parse_batch_response(
+        load_fixture("eventhub/metrics_batch.json"), [standard, premium], [throttled, ingress, cpu]
+    )
+    assert [p.value for p in out[standard][throttled.name]] == [1.0, 0.0, None]
+    assert [p.value for p in out[standard][ingress.name]] == [48_000_000.0, 60_000_000.0]
+    assert out[standard][cpu.name] == []  # Basic/Standard have no CPU metric
+    assert [p.value for p in out[premium][cpu.name]] == [91.0, 93.0]
+    assert [p.value for p in out[premium][ingress.name]] == [300_000_000.0]

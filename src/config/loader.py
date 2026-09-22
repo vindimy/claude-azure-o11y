@@ -6,15 +6,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import BaseModel
 
-from config.models import (
-    AppConfig,
-    AssignmentGroups,
-    IgnoreConfig,
-    SqlSkuCatalog,
-    Thresholds,
-    VmSkuCatalog,
-)
+from config.models import AppConfig, AssignmentGroups, IgnoreConfig, Thresholds
 from resource_types import TYPES
 
 
@@ -59,8 +53,20 @@ def load_config(config_dir: Path, mg_id: str) -> AppConfig:
         assignment_groups=AssignmentGroups.model_validate(
             _read_yaml(config_dir / "assignment-groups.yaml")
         ),
-        vm_skus=VmSkuCatalog.model_validate(_read_yaml(config_dir / "vm-skus.yaml")),
-        postgres_skus=VmSkuCatalog.model_validate(_read_yaml(config_dir / "postgres-skus.yaml")),
-        sql_skus=SqlSkuCatalog.model_validate(_read_yaml(config_dir / "sql-skus.yaml")),
         rules=rules,
+        catalogs=_load_catalogs(config_dir),
     )
+
+
+def _load_catalogs(config_dir: Path) -> dict[str, BaseModel]:
+    """One validated catalog per type that declares one; a file shared by types is read once."""
+    by_file: dict[str, BaseModel] = {}
+    catalogs: dict[str, BaseModel] = {}
+    for kind, spec in TYPES.items():
+        if spec.catalog is None:
+            continue
+        if spec.catalog.file not in by_file:
+            raw = _read_yaml(config_dir / spec.catalog.file)
+            by_file[spec.catalog.file] = spec.catalog.model.model_validate(raw)
+        catalogs[kind] = by_file[spec.catalog.file]
+    return catalogs

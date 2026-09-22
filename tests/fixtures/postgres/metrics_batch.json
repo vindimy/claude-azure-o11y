@@ -1,0 +1,105 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/PG-READY",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/PG-READY/providers/Microsoft.Insights/metrics/cpu_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "cpu_percent",
+            "localizedValue": "cpu_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 4.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 6.5
+                },
+                {
+                  "timeStamp": "2026-09-15T11:02:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/PG-READY/providers/Microsoft.Insights/metrics/memory_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "memory_percent",
+            "localizedValue": "memory_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 15.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 16.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/PG-READY/providers/Microsoft.Insights/metrics/storage_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "storage_percent",
+            "localizedValue": "storage_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 55.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/PG-READY/providers/Microsoft.Insights/metrics/disk_iops_consumed_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "disk_iops_consumed_percentage",
+            "localizedValue": "disk_iops_consumed_percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 12.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@ from pathlib import Path
 from config.loader import load_config
 from inventory.filters import filter_resources
 from models import Resource, Skip
-from resource_types.registry import keep
+from resource_types.registry import never_skip
 from resource_types.vm import active, parse
 from tests.conftest import load_fixture
 
@@ -41,7 +41,7 @@ def test_exclude_tag_value_must_be_true(config_dir: Path) -> None:
 def test_type_active_check_is_pluggable(config_dir: Path) -> None:
     cfg = load_config(config_dir, "mg-prod")
     r = Resource("x", "/r/1", "r1", "t", "s", "rg", "eastus", "sku", {}, {"state": "Paused"})
-    assert filter_resources([r], cfg.thresholds.tags, [], keep).kept == [r]
+    assert filter_resources([r], cfg.thresholds.tags, [], never_skip).kept == [r]
 
     def paused(res: Resource) -> Skip | None:
         return Skip(res.id, "not_online", str(res.prop("state")))

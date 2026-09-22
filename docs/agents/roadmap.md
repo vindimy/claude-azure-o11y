@@ -38,13 +38,17 @@ Each is platform metrics or Resource Graph only, so it needs no new permission a
 One PR per type. The pipeline does not change; a type is:
 
 1. `src/resource_types/<type>.py`: `KIND`, `ARM_TYPE`, `QUERY` (Resource Graph KQL), `parse` (row →
-   `Resource`, type facts in `props`), `active` (skip before metrics), optional `finops_skip`, and `SPEC`
-   (`ResourceTypeSpec`), registered with one line in `src/resource_types/__init__.py`.
+   `Resource` via `registry.base_resource`, type facts in `props`), `active` (skip before metrics;
+   `registry.require_state` for the common "is it running" check), optional `finops_skip`, optional
+   `enrich` (facts that need the type's rules), and `SPEC` (`ResourceTypeSpec`, including
+   `catalog=CatalogSource(...)` when the recommender reads a SKU catalog), registered with one line in
+   `src/resource_types/__init__.py`.
 2. A block under `resource_types:` in `config/thresholds/default.yaml`: namespace, optional
    `granularity` override, one entry per metric key ([thresholds](thresholds.md#metric-fields)), and the
    recommender knobs.
 3. `src/recommend/<type>.py`: the rules model (pydantic, `extra="forbid"`) and the pure recommender
-   ([recommendations](recommendations.md)); catalogs go in `config/*.yaml`.
+   ([recommendations](recommendations.md)); catalogs go in `config/*.yaml` and are loaded through
+   `SPEC.catalog`, so `config/models.py` and the loader stay untouched.
 4. Fixtures under `tests/fixtures/<type>/` (one Resource Graph page, one batch payload),
    `tests/test_resource_types_<type>.py` (parser, active/skip, end-to-end dry run through
    `pipeline.run`), `tests/test_recommend_<type>.py`.

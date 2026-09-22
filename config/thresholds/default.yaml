@@ -187,6 +187,10 @@ resource_types:
         finops_cold: 30
     recommend:
       headroom: 1.3
+      # Ingress capacity per unit, decimal MB/s. Azure publishes 1 MB/s per TU (Basic/Standard)
+      # and quotes 5-10 MB/s per PU (Premium); the conservative end is the default.
+      mb_per_tu: 1
+      mb_per_pu: 5
   vnet:
     namespace: Microsoft.Network/virtualNetworks
     metrics:

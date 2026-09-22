@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from config.models import AppConfig
-from models import ColdFinding, Recommendation, Resource, Skip
+from config.models import AppConfig, SqlSkuCatalog
+from models import ColdFinding, Recommendation, Resource
 from recommend.sqlmi import SqlMiRecommendRules, recommend_sqlmi
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import ResourceTypeSpec, base_resource, require_state
+from resource_types.sqldb import SQL_SKUS
 
 KIND = "sqlmi"
 ARM_TYPE = "microsoft.sql/managedinstances"
@@ -27,16 +28,11 @@ resources
 def parse(row: dict[str, Any]) -> Resource:
     sku_name = str(row.get("skuName") or "")
     vcores = int(row.get("vcores") or 0)
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=f"{sku_name} {vcores} vCores",
-        tags=parse_tags(row),
         props={
             "tier": str(row.get("tier") or ""),
             "sku_name": sku_name,
@@ -47,17 +43,15 @@ def parse(row: dict[str, Any]) -> Resource:
     )
 
 
-def active(resource: Resource) -> Skip | None:
-    state = str(resource.prop("state", ""))
-    if state.lower() == READY:
-        return None
-    return Skip(resource.id, "not_ready", state or "unknown")
+active = require_state("state", READY, "not_ready")
 
 
 def recommend(finding: ColdFinding, config: AppConfig) -> Recommendation:
-    rules = config.rules_for(KIND)
-    assert isinstance(rules, SqlMiRecommendRules)
-    return recommend_sqlmi(finding, config.sql_skus, rules)
+    return recommend_sqlmi(
+        finding,
+        config.catalog_for(KIND, SqlSkuCatalog),
+        config.rules_for(KIND, SqlMiRecommendRules),
+    )
 
 
 SPEC = ResourceTypeSpec(
@@ -68,5 +62,5 @@ SPEC = ResourceTypeSpec(
     active=active,
     recommend=recommend,
     rules_model=SqlMiRecommendRules,
-    priced=False,
+    catalog=SQL_SKUS,
 )

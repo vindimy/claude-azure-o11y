@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
@@ -112,6 +112,13 @@ class ColdFinding:
     def observation(self, key: str) -> ColdObservation | None:
         return next((o for o in self.observations if o.metric == key), None)
 
+    def evidence(self, label: str) -> str:
+        """The cold-metric sentence a recommendation's reason opens with."""
+        return (
+            f"P{self.percentile} {label} {self.observed:g}% over {self.lookback_days}d is below "
+            f"{self.threshold:g}%."
+        )
+
 
 Confidence = Literal["high", "medium", "low"]
 
@@ -130,6 +137,14 @@ class Recommendation:
         if self.current_monthly is None or self.projected_monthly is None:
             return None
         return self.current_monthly - self.projected_monthly
+
+    def with_pricing(self, current: Decimal | None, projected: Decimal | None) -> Recommendation:
+        """A copy with the cost columns filled."""
+        return replace(self, current_monthly=current, projected_monthly=projected)
+
+    def with_note(self, note: str) -> Recommendation:
+        """A copy with `note` appended to the reason."""
+        return replace(self, reason=f"{self.reason} {note}")
 
 
 @dataclass

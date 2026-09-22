@@ -7,7 +7,7 @@ from typing import Any
 from config.models import AppConfig
 from models import ColdFinding, Recommendation, Resource, Skip
 from recommend.cosmos import CosmosRecommendRules, recommend_cosmos
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import ResourceTypeSpec, base_resource
 
 KIND = "cosmos"
 ARM_TYPE = "microsoft.documentdb/databaseaccounts"
@@ -26,16 +26,11 @@ resources
 
 def parse(row: dict[str, Any]) -> Resource:
     capacity_mode = SERVERLESS if bool(row.get("serverless")) else "provisioned"
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=capacity_mode,
-        tags=parse_tags(row),
         props={
             "api_kind": str(row.get("apiKind") or ""),
             "capacity_mode": capacity_mode,
@@ -52,9 +47,7 @@ def finops_skip(resource: Resource) -> Skip | None:
 
 
 def recommend(finding: ColdFinding, config: AppConfig) -> Recommendation:
-    rules = config.rules_for(KIND)
-    assert isinstance(rules, CosmosRecommendRules)
-    return recommend_cosmos(finding, rules)
+    return recommend_cosmos(finding, config.rules_for(KIND, CosmosRecommendRules))
 
 
 SPEC = ResourceTypeSpec(

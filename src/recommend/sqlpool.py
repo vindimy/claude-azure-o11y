@@ -6,9 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 from config.models import SqlSkuCatalog
 from models import ColdFinding, Recommendation
-from recommend.ladder import fit_up
-
-NOTE = " Pricing not implemented for SQL."
+from recommend.ladder import fit_down
 
 
 class SqlPoolRecommendRules(BaseModel):
@@ -25,11 +23,7 @@ def recommend_sqlpool(
     sku_name = str(resource.prop("sku_name", ""))
     capacity = int(resource.prop("capacity", 0) or 0)
     purchasing_model = str(resource.prop("purchasing_model", ""))
-    evidence = (
-        f"P{finding.percentile} {finding.metric.upper()} {finding.observed:g}% over "
-        f"{finding.lookback_days}d is below {finding.threshold:g}%."
-    )
-    needed = capacity * finding.observed / 100 * rules.headroom
+    evidence = finding.evidence(finding.metric.upper())
 
     if purchasing_model == "vcore":
         ladder = catalog.vcore.get("pool", [])
@@ -38,15 +32,15 @@ def recommend_sqlpool(
                 finding=finding,
                 target_sku=None,
                 confidence="low",
-                reason=f"{evidence} vCore ladder or capacity unknown; cannot recommend.{NOTE}",
+                reason=f"{evidence} vCore ladder or capacity unknown; cannot recommend.",
             )
-        target = fit_up(ladder, needed, rules.min_vcores, capacity)
+        target = fit_down(ladder, capacity, finding.observed, rules.headroom, rules.min_vcores)
         if target is None:
             return Recommendation(
                 finding=finding,
                 target_sku=None,
                 confidence="medium",
-                reason=f"{evidence} already at min_vcores={rules.min_vcores}.{NOTE}",
+                reason=f"{evidence} already at min_vcores={rules.min_vcores}.",
             )
         return Recommendation(
             finding=finding,
@@ -54,7 +48,7 @@ def recommend_sqlpool(
             confidence="medium",
             reason=(
                 f"{evidence} {target} vCores cover P{finding.percentile} with "
-                f"{rules.headroom:g}x headroom.{NOTE}"
+                f"{rules.headroom:g}x headroom."
             ),
         )
 
@@ -64,15 +58,15 @@ def recommend_sqlpool(
             finding=finding,
             target_sku=None,
             confidence="low",
-            reason=f"{evidence} {tier} not in config/sql-skus.yaml; cannot recommend.{NOTE}",
+            reason=f"{evidence} {tier} not in config/sql-skus.yaml; cannot recommend.",
         )
-    target = fit_up(ladder, needed, 0, capacity)
+    target = fit_down(ladder, capacity, finding.observed, rules.headroom)
     if target is None:
         return Recommendation(
             finding=finding,
             target_sku=None,
             confidence="medium",
-            reason=f"{evidence} {sku_name} is already the smallest {tier} pool size.{NOTE}",
+            reason=f"{evidence} {sku_name} is already the smallest {tier} pool size.",
         )
     return Recommendation(
         finding=finding,
@@ -80,6 +74,6 @@ def recommend_sqlpool(
         confidence="medium",
         reason=(
             f"{evidence} {target} eDTU covers P{finding.percentile} with "
-            f"{rules.headroom:g}x headroom.{NOTE}"
+            f"{rules.headroom:g}x headroom."
         ),
     )

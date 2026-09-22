@@ -8,16 +8,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from config.models import AppConfig
+from config.models import AppConfig, SqlSkuCatalog
 from models import ColdFinding, Recommendation, Resource, Skip
 from recommend.sqldb import SqlDbRecommendRules, recommend_sqldb
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import CatalogSource, ResourceTypeSpec, base_resource, require_state
 
 KIND = "sqldb"
 ARM_TYPE = "microsoft.sql/servers/databases"
 ONLINE = "online"
 # Resource Graph returns title case today, but every comparison here is case-insensitive.
+# Shared with elastic pools, which bill in the same DTU tiers.
 DTU_TIERS = {"basic", "standard", "premium"}
+SQL_SKUS = CatalogSource("sql-skus.yaml", SqlSkuCatalog)
 
 QUERY = """
 resources
@@ -48,16 +50,11 @@ def is_hyperscale(tier: str, sku_name: str) -> bool:
 def parse(row: dict[str, Any]) -> Resource:
     tier = str(row.get("tier") or "")
     sku_name = str(row.get("skuName") or "")
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=sku_name,
-        tags=parse_tags(row),
         props={
             "tier": tier,
             "sku_name": sku_name,
@@ -71,11 +68,7 @@ def parse(row: dict[str, Any]) -> Resource:
     )
 
 
-def active(resource: Resource) -> Skip | None:
-    status = str(resource.prop("status", ""))
-    if status.lower() == ONLINE:
-        return None
-    return Skip(resource.id, "not_online", status or "unknown")
+active = require_state("status", ONLINE, "not_online")
 
 
 def finops_skip(resource: Resource) -> Skip | None:
@@ -86,9 +79,11 @@ def finops_skip(resource: Resource) -> Skip | None:
 
 
 def recommend(finding: ColdFinding, config: AppConfig) -> Recommendation:
-    rules = config.rules_for(KIND)
-    assert isinstance(rules, SqlDbRecommendRules)
-    return recommend_sqldb(finding, config.sql_skus, rules)
+    return recommend_sqldb(
+        finding,
+        config.catalog_for(KIND, SqlSkuCatalog),
+        config.rules_for(KIND, SqlDbRecommendRules),
+    )
 
 
 SPEC = ResourceTypeSpec(
@@ -100,4 +95,5 @@ SPEC = ResourceTypeSpec(
     finops_skip=finops_skip,
     recommend=recommend,
     rules_model=SqlDbRecommendRules,
+    catalog=SQL_SKUS,
 )

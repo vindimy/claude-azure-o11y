@@ -13,7 +13,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from config.models import AppConfig, MetricThreshold, ResourceTypeThresholds
 from config.settings import Settings
@@ -21,7 +21,7 @@ from errors import PermissionMissing
 from evaluate.metric import evaluate_cold, evaluate_hot
 from inventory.filters import filter_resources
 from metrics.batch import MetricWindow, chunk
-from metrics.derive import requests_for, resolve_series
+from metrics.derive import RunMode, requests_for, resolve_series
 from models import MetricRequest, Resource, RunSummary, Series, Skip
 from notify.base import FindingsSink
 from notify.findings import (
@@ -34,14 +34,16 @@ from notify.findings import (
     ops_row,
 )
 from ports import InventoryPort, MetricsPort, PricingPort
-from recommend.pricing import with_pricing
 from resource_types import TYPES
 from resource_types.registry import ResourceTypeSpec
 
 log = logging.getLogger(__name__)
 
-# One timer trigger per mode: Ops every few minutes, FinOps once a day.
-RunMode = Literal["ops", "finops"]
+# Appended to the reason of every FinOps row of a type PricingPort cannot price (`SPEC.priced`),
+# so FinOps sees why the cost columns are empty. Recommenders themselves never mention pricing.
+UNPRICED_NOTE = "Pricing not implemented for this resource type."
+
+__all__ = ["Clients", "FindingsWriteFailed", "RunMode", "UNPRICED_NOTE", "run"]
 
 
 @dataclass
@@ -163,8 +165,12 @@ async def _run_type(
     type_cfg = th.resource_types[kind]
     ts = summary.for_type(kind)
 
-    # 1. Inventory + filters
-    resources = await clients.inventory.list_resources(kind, settings.scope)
+    # 1. Inventory + filters. `enrich` adds the facts that need the type's rules (config), which
+    # the pure parser cannot see.
+    rules = config.rules[kind]
+    resources = [
+        spec.enrich(r, rules) for r in await clients.inventory.list_resources(kind, settings.scope)
+    ]
     ts.inventory_total = len(resources)
     summary.inventory_total += len(resources)
     filtered = filter_resources(
@@ -259,7 +265,9 @@ async def _run_type(
                 if rec.target_sku
                 else None
             )
-            rec = with_pricing(rec, current, projected)
+            rec = rec.with_pricing(current, projected)
+        else:
+            rec = rec.with_note(UNPRICED_NOTE)
         cfg = type_cfg.metrics[cold.metric]
         rows.append(
             finops_row(

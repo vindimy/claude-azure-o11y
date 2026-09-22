@@ -11,7 +11,7 @@ from metrics.batch import parse_batch_response
 from models import MetricRequest, Resource, Scope, Skip
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, run
+from pipeline import UNPRICED_NOTE, Clients, run
 from resource_types.sqldb import ARM_TYPE, QUERY, parse, purchasing_model
 from resource_types.sqldb import SPEC as SQLDB
 from tests.conftest import load_fixture
@@ -170,5 +170,5 @@ async def test_finops_run_recommends_a_smaller_objective(
     assert cold["ResourceName"] == "db-cold" and cold["Sku"] == "S3"
     assert cold["MetricKey"] == "dtu" and cold["ObservedValue"] == 5.0
     assert cold["RecommendedSku"] == "S0" and cold["Confidence"] == "medium"
-    assert cold["Reason"].endswith("Pricing not implemented for SQL.")
+    assert cold["Reason"].endswith(UNPRICED_NOTE)
     assert cold["CurrentMonthlyCost"] is None and cold["EstimatedMonthlySaving"] is None

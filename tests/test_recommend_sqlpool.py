@@ -48,7 +48,7 @@ def finding(
 
 @pytest.fixture
 def catalog(config_dir: Path) -> SqlSkuCatalog:
-    return load_config(config_dir, "mg-x").sql_skus
+    return load_config(config_dir, "mg-x").catalog_for("sqlpool", SqlSkuCatalog)
 
 
 def test_dtu_ladder_recommends_next_smaller_pool(catalog: SqlSkuCatalog) -> None:
@@ -61,7 +61,7 @@ def test_dtu_ladder_recommends_next_smaller_pool(catalog: SqlSkuCatalog) -> None
     assert rec.confidence == "medium"
     assert "P95 DTU 15% over 14d is below 20%" in rec.reason
     assert "50 eDTU covers P95 with 1.3x headroom." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for SQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_vcore_ladder_recommends_next_smaller_pool(catalog: SqlSkuCatalog) -> None:
@@ -74,7 +74,7 @@ def test_vcore_ladder_recommends_next_smaller_pool(catalog: SqlSkuCatalog) -> No
     assert rec.confidence == "medium"
     assert "P95 CPU 10% over 14d is below 20%" in rec.reason
     assert "2 vCores cover P95 with 1.3x headroom." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for SQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_dtu_pool_already_smallest(catalog: SqlSkuCatalog) -> None:

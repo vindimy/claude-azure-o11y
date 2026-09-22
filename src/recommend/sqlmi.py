@@ -1,4 +1,4 @@
-"""Azure SQL Managed Instance downsizing rule. Pure function; no pricing (SQL is unpriced, MVP)."""
+"""Azure SQL Managed Instance downsizing rule. Pure function."""
 
 from __future__ import annotations
 
@@ -6,9 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 from config.models import SqlSkuCatalog
 from models import ColdFinding, Recommendation
-from recommend.ladder import fit_up
-
-_PRICING_NOTE = " Pricing not implemented for SQL."
+from recommend.ladder import fit_down
 
 
 class SqlMiRecommendRules(BaseModel):
@@ -21,10 +19,7 @@ def recommend_sqlmi(
     finding: ColdFinding, catalog: SqlSkuCatalog, rules: SqlMiRecommendRules
 ) -> Recommendation:
     resource = finding.resource
-    evidence = (
-        f"P{finding.percentile} CPU {finding.observed:g}% over {finding.lookback_days}d is below "
-        f"{finding.threshold:g}%."
-    )
+    evidence = finding.evidence("CPU")
     sku_name = str(resource.prop("sku_name", "") or "")
     vcores = int(resource.prop("vcores", 0) or 0)
     ladder = catalog.vcore.get("managed_instance", [])
@@ -33,19 +28,15 @@ def recommend_sqlmi(
             finding=finding,
             target_sku=None,
             confidence="low",
-            reason=f"{evidence} vCore ladder or capacity unknown; cannot recommend.{_PRICING_NOTE}",
+            reason=f"{evidence} vCore ladder or capacity unknown; cannot recommend.",
         )
-    needed = vcores * finding.observed / 100 * rules.headroom
-    target = fit_up(ladder, needed, rules.min_vcores, vcores)
+    target = fit_down(ladder, vcores, finding.observed, rules.headroom, rules.min_vcores)
     if target is None:
         return Recommendation(
             finding=finding,
             target_sku=None,
             confidence="medium",
-            reason=(
-                f"{evidence} {resource.sku} is already at min_vcores={rules.min_vcores}."
-                f"{_PRICING_NOTE}"
-            ),
+            reason=f"{evidence} {resource.sku} is already at min_vcores={rules.min_vcores}.",
         )
     return Recommendation(
         finding=finding,
@@ -53,6 +44,6 @@ def recommend_sqlmi(
         confidence="medium",
         reason=(
             f"{evidence} {target} vCores cover P{finding.percentile} with "
-            f"{rules.headroom:g}x headroom.{_PRICING_NOTE}"
+            f"{rules.headroom:g}x headroom."
         ),
     )

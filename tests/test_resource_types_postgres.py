@@ -14,10 +14,11 @@ import pytest
 
 from config.loader import load_config
 from config.settings import Settings
-from models import Resource, Scope
+from metrics.batch import parse_batch_response
+from models import MetricRequest, Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, run
+from pipeline import UNPRICED_NOTE, Clients, run
 from resource_types.postgres import parse as parse_postgres
 from tests.conftest import load_fixture
 from tests.test_pipeline import FAKE_VALUES, FakeMetrics, FakePricing, rows
@@ -84,7 +85,7 @@ async def test_finops_run_recommends_smaller_sku(
     assert cold["MetricKey"] == "cpu" and cold["Percentile"] == 95
     assert cold["RecommendedSku"] == "Standard_D2ds_v5"
     assert cold["Confidence"] == "medium"
-    assert cold["Reason"].endswith("Pricing not implemented for PostgreSQL.")
+    assert cold["Reason"].endswith(UNPRICED_NOTE)
     assert cold["CurrentMonthlyCost"] is None and cold["ProjectedMonthlyCost"] is None
 
 
@@ -97,3 +98,18 @@ async def test_not_ready_server_is_skipped_from_finops_too(
     summary = await run(settings, cfg, clients, "finops", now=NOW)
     assert summary.skips.get("not_ready") == 1
     assert [r["ResourceName"] for r in rows(tmp_path, FINOPS_TABLE)] == ["pg-ready"]
+
+
+def test_batch_response_maps_postgres_metrics() -> None:
+    """The recorded batch payload names the metrics exactly as thresholds config expects them."""
+    pg = (
+        "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/"
+        "flexibleServers/pg-ready"
+    )
+    names = ("cpu_percent", "memory_percent", "storage_percent", "disk_iops_consumed_percentage")
+    requests = [MetricRequest(name, "Average") for name in names]
+    out = parse_batch_response(load_fixture("postgres/metrics_batch.json"), [pg], requests)
+    assert [p.value for p in out[pg]["cpu_percent"]] == [4.0, 6.5, None]
+    assert [p.value for p in out[pg]["memory_percent"]] == [15.0, 16.0]
+    assert [p.value for p in out[pg]["storage_percent"]] == [55.0]
+    assert [p.value for p in out[pg]["disk_iops_consumed_percentage"]] == [12.0]

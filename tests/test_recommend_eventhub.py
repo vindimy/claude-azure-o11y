@@ -5,10 +5,7 @@ import pytest
 from models import ColdFinding, Resource
 from recommend.eventhub import EventHubRecommendRules, recommend_eventhub, unit_label
 
-_SUFFIX = (
-    " Standard→Basic not evaluated (needs capture/consumer-group/retention checks). "
-    "Pricing not implemented for Event Hubs."
-)
+_SUFFIX = " Standard→Basic not evaluated (needs capture/consumer-group/retention checks)."
 
 
 def finding(tier: str, capacity: int, observed: float, percentile: int = 95) -> ColdFinding:
@@ -89,3 +86,13 @@ def test_rules_reject_unknown_keys() -> None:
 
 def test_default_headroom_is_1_3() -> None:
     assert EventHubRecommendRules().headroom == 1.3
+
+
+def test_unit_rates_are_knobs_with_azure_defaults() -> None:
+    rules = EventHubRecommendRules()
+    assert rules.mb_per_tu == 1 and rules.mb_per_pu == 5  # conservative end of 5-10 MB/s per PU
+    assert rules.unit_mbps("Standard") == 1 and rules.unit_mbps("basic") == 1
+    assert rules.unit_mbps("Premium") == 5 and rules.unit_mbps("premium") == 5
+    assert rules.unit_mbps("Dedicated") is None and rules.unit_mbps("") is None
+    tuned = EventHubRecommendRules.model_validate({"mb_per_pu": 10})
+    assert tuned.unit_mbps("Premium") == 10

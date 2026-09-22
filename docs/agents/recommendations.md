@@ -22,8 +22,17 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
   why each row exists.
 - Per-MG knobs (e.g. `min_vcpu`) go in the `recommend:` block of the type in the thresholds config and
   are validated by the type's pydantic rules model at startup (unknown keys fail).
-- Shared ladder helpers live in `recommend/ladder.py`: `next_smaller` (VM/PostgreSQL families) and
-  `fit_up` (smallest size that covers `current × P95/100 × headroom`, used by SQL and Event Hubs).
+- Recommenders never mention pricing. The pipeline appends `pipeline.UNPRICED_NOTE` to the reason
+  of every row of a type with `SPEC.priced=False`, so the "why are the cost columns empty" text
+  lives in one place.
+- Shared helpers live in `recommend/ladder.py`: `downsize_in_family` / `next_smaller_in_family`
+  (one step down a `FamilySkuCatalog` family, used by VM and PostgreSQL) and `fit_down` / `fit_up`
+  (smallest ladder size that covers `current × P95/100 × headroom`, used by SQL Database, elastic
+  pools, and Managed Instance). Event Hubs sizes a contiguous 1..N unit ladder, so it uses a plain
+  `ceil`.
+- A type's SKU catalog is declared on its spec (`SPEC.catalog = CatalogSource("<file>.yaml",
+  Model)`) and read with `config.catalog_for(KIND, Model)`; its knobs with
+  `config.rules_for(KIND, Rules)`. Adding a type never edits `config/models.py` or the loader.
 
 ## Pricing
 
@@ -31,8 +40,8 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
 (`https://prices.azure.com/api/retail/prices`). The API is unauthenticated, so this is the one HTTP client
 allowed outside the thin-client packages. Prices are cached per run, and a pricing failure leaves the cost
 columns empty instead of failing the run. **Only VMs are priced today** (`SPEC.priced`); every other type
-writes null cost columns and says so at the end of `Reason`. Pricing for SQL, PostgreSQL, Cosmos DB, and
-Event Hubs is on the [roadmap](roadmap.md).
+writes null cost columns and the pipeline says so at the end of `Reason` (`UNPRICED_NOTE`). Pricing for
+SQL, PostgreSQL, Cosmos DB, and Event Hubs is on the [roadmap](roadmap.md).
 
 ## Rules by type
 
@@ -59,8 +68,11 @@ Thresholds below are the defaults in `config/thresholds/default.yaml`; `headroom
   the autoscale max") or `ProvisionedThroughput`. P95/median ≥ `autoscale_ratio` → recommend autoscale.
   Account-level metrics, so confidence is always `low` and the reason says "verify per container".
   Serverless accounts are Ops-only (`no_capacity_model`).
-- **Event Hubs** (`recommend/eventhub.py`, `headroom`): P95 ingress < 30 % of capacity, where capacity
-  is `sku.capacity × 1 MB/s` per TU (Basic/Standard) or `× 5 MB/s` per PU (Premium, conservative end of
-  Azure's 5–10 MB/s). Target units = `max(1, ceil(capacity × P95/100 × headroom))`. Standard→Basic is
-  never recommended (needs capture, consumer-group, and retention checks). Dedicated is Ops-only.
+- **Event Hubs** (`recommend/eventhub.py`, knobs `headroom`, `mb_per_tu`, `mb_per_pu`): P95 ingress
+  < 30 % of capacity, where capacity is `sku.capacity × mb_per_tu` MB/s per TU (Basic/Standard) or
+  `× mb_per_pu` per PU (Premium). Defaults are Azure's published 1 MB/s per TU and the conservative end
+  of its 5–10 MB/s per PU. The parser cannot see config, so `SPEC.enrich` attaches
+  `capacity_bytes_per_second` once the pipeline has the rules. Target units =
+  `max(1, ceil(capacity × P95/100 × headroom))`. Standard→Basic is never recommended (needs capture,
+  consumer-group, and retention checks). Dedicated is Ops-only.
 - **VNET subnets:** Ops-only (capacity, not cost).

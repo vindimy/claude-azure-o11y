@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from config.models import AppConfig
-from models import ColdFinding, Recommendation, Resource, Skip
+from config.models import AppConfig, FamilySkuCatalog
+from models import ColdFinding, Recommendation, Resource
 from recommend.vm import VmRecommendRules, recommend_vm
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import CatalogSource, ResourceTypeSpec, base_resource, require_state
 
 KIND = "vm"
 ARM_TYPE = "microsoft.compute/virtualmachines"
@@ -25,16 +25,11 @@ resources
 
 
 def parse(row: dict[str, Any]) -> Resource:
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=str(row.get("vmSize") or ""),
-        tags=parse_tags(row),
         props={
             "os_type": str(row.get("osType") or ""),
             "power_state": str(row.get("powerState") or ""),
@@ -42,17 +37,15 @@ def parse(row: dict[str, Any]) -> Resource:
     )
 
 
-def active(resource: Resource) -> Skip | None:
-    state = str(resource.prop("power_state", ""))
-    if state.lower() == RUNNING:
-        return None
-    return Skip(resource.id, "not_running", state or "unknown")
+active = require_state("power_state", RUNNING, "not_running")
 
 
 def recommend(finding: ColdFinding, config: AppConfig) -> Recommendation:
-    rules = config.rules_for(KIND)
-    assert isinstance(rules, VmRecommendRules)
-    return recommend_vm(finding, config.vm_skus, rules)
+    return recommend_vm(
+        finding,
+        config.catalog_for(KIND, FamilySkuCatalog),
+        config.rules_for(KIND, VmRecommendRules),
+    )
 
 
 SPEC = ResourceTypeSpec(
@@ -63,5 +56,6 @@ SPEC = ResourceTypeSpec(
     active=active,
     recommend=recommend,
     rules_model=VmRecommendRules,
+    catalog=CatalogSource("vm-skus.yaml", FamilySkuCatalog),
     priced=True,
 )

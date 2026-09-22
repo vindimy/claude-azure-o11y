@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from models import Resource
-from resource_types.registry import ResourceTypeSpec, parse_tags
+from resource_types.registry import ResourceTypeSpec, base_resource
 
 KIND = "vnet"
 ARM_TYPE = "microsoft.network/virtualnetworks/subnets"
@@ -49,16 +49,11 @@ def parse(row: dict[str, Any]) -> Resource:
     ip_usable = usable_ips(prefixes)
     ip_used = int(row.get("ipUsed") or 0)
     utilization = round(ip_used / ip_usable * 100, 2) if ip_usable > 0 else 0.0
-    return Resource(
+    return base_resource(
+        row,
         kind=KIND,
-        id=str(row["id"]),
-        name=str(row["name"]),
-        type=ARM_TYPE,
-        subscription_id=str(row["subscriptionId"]),
-        resource_group=str(row["resourceGroup"]),
-        location=str(row["location"]),
+        arm_type=ARM_TYPE,
         sku=", ".join(prefixes),
-        tags=parse_tags(row),
         props={
             "vnet_id": str(row["vnetId"]),
             "prefixes": prefixes,

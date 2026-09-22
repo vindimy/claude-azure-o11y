@@ -15,7 +15,7 @@ from metrics.batch import MetricWindow
 from models import MetricPoint, MetricRequest, Resource, Scope, Series
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, FindingsWriteFailed, run
+from pipeline import UNPRICED_NOTE, Clients, FindingsWriteFailed, run
 from resource_types.registry import ResourceTypeSpec
 from resource_types.vm import parse as parse_vm
 from tests.conftest import load_fixture
@@ -200,6 +200,7 @@ async def test_finops_run_writes_cold_rows_only(tmp_path: Path, config_dir: Path
     assert cold["OsType"] == "Windows"
     assert cold["CurrentMonthlyCost"] == 560.64 and cold["ProjectedMonthlyCost"] == 280.32
     assert cold["EstimatedMonthlySaving"] == 280.32 and cold["Currency"] == "USD"
+    assert UNPRICED_NOTE not in cold["Reason"]  # VMs are priced
     assert cold["WindowStart"] == "2026-09-01T12:00:00Z"
     assert cold["MissingTags"] == ["owner", "assignment_group"]
 

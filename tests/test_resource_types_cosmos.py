@@ -7,7 +7,8 @@ import pytest
 
 from config.loader import load_config
 from config.settings import Settings
-from models import Resource, Scope
+from metrics.batch import parse_batch_response
+from models import MetricRequest, Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
 from pipeline import Clients, run
@@ -165,3 +166,24 @@ async def test_serverless_account_costs_no_metrics_call(
     assert summary.skips["no_capacity_model"] == 1
     assert summary.inventory_total == 3 and summary.evaluated == 2
     assert [n for _, _, n, _ in metrics.calls] == [2]
+
+
+def test_batch_response_maps_cosmos_metrics_by_their_aggregation() -> None:
+    """The recorded batch payload names the metrics exactly as thresholds config expects them."""
+    prefix = (
+        "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/"
+        "databaseAccounts/"
+    )
+    cold, hot = prefix + "cosmos-cold", prefix + "cosmos-hot"
+    ru = MetricRequest("NormalizedRUConsumption", "Maximum")
+    provisioned = MetricRequest("ProvisionedThroughput", "Maximum")
+    autoscale = MetricRequest("AutoscaleMaxThroughput", "Maximum")
+    throttled = MetricRequest("ThrottledRequestPercentage", "Average")
+    requests = [ru, provisioned, autoscale, throttled]
+    out = parse_batch_response(load_fixture("cosmos/metrics_batch.json"), [cold, hot], requests)
+    assert [p.value for p in out[cold][ru.name]] == [12.0, 9.0, None]
+    assert [p.value for p in out[cold][provisioned.name]] == [4000.0, 4000.0]
+    assert [p.value for p in out[cold][autoscale.name]] == [None, None]  # not autoscale
+    assert [p.value for p in out[hot][ru.name]] == [96.0, 98.0]
+    assert [p.value for p in out[hot][throttled.name]] == [7.5]
+    assert out[hot][provisioned.name] == []

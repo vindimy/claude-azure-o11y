@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict
 
 from models import ColdFinding, Recommendation
 
+VERIFY = " Account-level value; verify per container."
+
 
 class CosmosRecommendRules(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -30,41 +32,45 @@ def recommend_cosmos(finding: ColdFinding, rules: CosmosRecommendRules) -> Recom
         f"P{ru.percentile} normalized RU {ru.value:g}% over {finding.lookback_days}d is below "
         f"{ru.threshold:g}% (median {ru.median:g}%)."
     )
-    verify = " Account-level value; verify per container. Pricing not implemented for Cosmos DB."
     base = autoscale_max or provisioned
     if not base:
         return Recommendation(
-            finding,
-            None,
-            "low",
-            f"{evidence} No provisioned throughput metric; cannot size.{verify}",
+            finding=finding,
+            target_sku=None,
+            confidence="low",
+            reason=f"{evidence} No provisioned throughput metric; cannot size.{VERIFY}",
         )
     target = max(rules.min_ru, math.ceil(base * ru.value / 100 * rules.headroom / 100) * 100)
     if target >= base:
         return Recommendation(
-            finding,
-            None,
-            "low",
-            f"{evidence} Sized target {target} RU/s is not below current {base:g} RU/s.{verify}",
+            finding=finding,
+            target_sku=None,
+            confidence="low",
+            reason=(
+                f"{evidence} Sized target {target} RU/s is not below current {base:g} RU/s.{VERIFY}"
+            ),
         )
     bursty = ru.median > 0 and ru.value / ru.median >= rules.autoscale_ratio
     if autoscale_max:
         return Recommendation(
-            finding,
-            f"autoscale {target} RU/s max",
-            "low",
-            f"{evidence} Lower the autoscale max from {base:g} RU/s.{verify}",
+            finding=finding,
+            target_sku=f"autoscale {target} RU/s max",
+            confidence="low",
+            reason=f"{evidence} Lower the autoscale max from {base:g} RU/s.{VERIFY}",
         )
     if bursty:
         return Recommendation(
-            finding,
-            f"autoscale {target} RU/s max",
-            "low",
-            f"{evidence} P95/median ratio {ru.value / ru.median:.1f} suggests autoscale.{verify}",
+            finding=finding,
+            target_sku=f"autoscale {target} RU/s max",
+            confidence="low",
+            reason=(
+                f"{evidence} P95/median ratio {ru.value / ru.median:.1f} suggests autoscale."
+                f"{VERIFY}"
+            ),
         )
     return Recommendation(
-        finding,
-        f"{target} RU/s",
-        "low",
-        f"{evidence} Lower provisioned throughput from {base:g} RU/s.{verify}",
+        finding=finding,
+        target_sku=f"{target} RU/s",
+        confidence="low",
+        reason=f"{evidence} Lower provisioned throughput from {base:g} RU/s.{VERIFY}",
     )

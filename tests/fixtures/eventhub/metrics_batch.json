@@ -1,0 +1,119 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.EventHub/namespaces",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/EH-STANDARD",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/EH-STANDARD/providers/Microsoft.Insights/metrics/ThrottledRequests",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "ThrottledRequests",
+            "localizedValue": "ThrottledRequests"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 1.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "total": 0.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:02:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/EH-STANDARD/providers/Microsoft.Insights/metrics/IncomingBytes",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "IncomingBytes",
+            "localizedValue": "IncomingBytes"
+          },
+          "unit": "Bytes",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 48000000.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "total": 60000000.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.EventHub/namespaces",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-premium",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-premium/providers/Microsoft.Insights/metrics/NamespaceCpuUsage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "NamespaceCpuUsage",
+            "localizedValue": "NamespaceCpuUsage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 91.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 93.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-premium/providers/Microsoft.Insights/metrics/IncomingBytes",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "IncomingBytes",
+            "localizedValue": "IncomingBytes"
+          },
+          "unit": "Bytes",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 300000000.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

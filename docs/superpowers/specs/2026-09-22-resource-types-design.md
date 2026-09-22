@@ -221,7 +221,8 @@ resource_types:
 ```
 
 `MetricThreshold` fields: `metric_name`, `unit` (default Percent), `aggregation` (default Average),
-`hot_when` (default above), `reduce` (default mean), `ops_hot?`, `finops_cold?` (at least one),
+`hot_when` (default above), `reduce` (default mean), `ops_hot?`, `finops_cold?` (both optional; a
+  metric with neither is fetched on FinOps runs as a recommender input only, see §7.6),
 `applies_to?`, `derive?`, `inputs?`, `capacity_prop?`. A type's `recommend:` block is validated at
 startup by that type's pydantic rules model (unknown keys fail, as everywhere in `config/`).
 

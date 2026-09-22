@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from config.models import VmSkuCatalog
+from config.models import FamilySkuCatalog
 from models import ColdFinding, Confidence, Recommendation
+from recommend.ladder import downsize_in_family
 
 
 class VmRecommendRules(BaseModel):
@@ -14,9 +15,8 @@ class VmRecommendRules(BaseModel):
 
 
 def recommend_vm(
-    finding: ColdFinding, catalog: VmSkuCatalog, rules: VmRecommendRules
+    finding: ColdFinding, catalog: FamilySkuCatalog, rules: VmRecommendRules
 ) -> Recommendation:
-    size = finding.resource.sku
     cpu = finding.observation("cpu")
     mem = finding.observation("memory")
     parts: list[str] = []
@@ -35,34 +35,11 @@ def recommend_vm(
     else:
         parts.append("Memory not evaluated (no Available Memory Percentage data).")
         confidence = "low"
-    evidence = " ".join(parts)
-    current = catalog.get(size)
-    if current is None:
-        return Recommendation(
-            finding=finding,
-            target_sku=None,
-            confidence="low",
-            reason=f"{evidence} SKU {size} not in config/vm-skus.yaml; cannot recommend.",
-        )
-    candidates = [
-        (name, spec)
-        for name, spec in catalog.family_members(current.family)
-        if spec.vcpu < current.vcpu and spec.vcpu >= rules.min_vcpu
-    ]
-    if not candidates:
-        return Recommendation(
-            finding=finding,
-            target_sku=None,
-            confidence=confidence,
-            reason=(
-                f"{evidence} {size} is already smallest allowed size in family "
-                f"{current.family} (min_vcpu={rules.min_vcpu})."
-            ),
-        )
-    target_name, _ = candidates[-1]
-    return Recommendation(
-        finding=finding,
-        target_sku=target_name,
+    return downsize_in_family(
+        finding,
+        catalog,
+        catalog_file="config/vm-skus.yaml",
+        min_vcpu=rules.min_vcpu,
+        evidence=" ".join(parts),
         confidence=confidence,
-        reason=f"{evidence} Next smaller size in family {current.family}.",
     )

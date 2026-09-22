@@ -10,10 +10,11 @@ import pytest
 from config.loader import load_config
 from config.settings import Settings
 from inventory.filters import filter_resources
-from models import Resource, Scope
+from metrics.batch import parse_batch_response
+from models import MetricRequest, Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
-from pipeline import Clients, run
+from pipeline import UNPRICED_NOTE, Clients, run
 from resource_types.sqlpool import active, parse
 from tests.conftest import load_fixture
 from tests.test_pipeline import FAKE_VALUES, FakeMetrics, FakePricing, rows
@@ -133,10 +134,31 @@ async def test_finops_run_recommends_smaller_pool(
     assert dtu["MetricKey"] == "dtu" and dtu["Percentile"] == 95
     assert dtu["RecommendedSku"] == "StandardPool 50"
     assert dtu["Confidence"] == "medium"
-    assert "Pricing not implemented for SQL." in dtu["Reason"]
+    assert dtu["Reason"].endswith(UNPRICED_NOTE)
     assert dtu["CurrentMonthlyCost"] is None and dtu["ProjectedMonthlyCost"] is None
 
     vcore = fin["pool-vcore"]
     assert vcore["MetricKey"] == "cpu"
     assert vcore["RecommendedSku"] == "GP_Gen5 2"
     assert vcore["Confidence"] == "medium"
+
+
+def test_batch_response_maps_pool_metrics() -> None:
+    """The recorded batch payload names the metrics exactly as thresholds config expects them."""
+    prefix = (
+        "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/"
+        "elasticPools/"
+    )
+    dtu_pool, vcore_pool = prefix + "pool-dtu", prefix + "pool-vcore"
+    dtu = MetricRequest("dtu_consumption_percent", "Average")
+    cpu = MetricRequest("cpu_percent", "Average")
+    storage = MetricRequest("storage_percent", "Average")
+    out = parse_batch_response(
+        load_fixture("sqlpool/metrics_batch.json"), [dtu_pool, vcore_pool], [dtu, cpu, storage]
+    )
+    # resource ids are matched case-insensitively (the payload upper-cases pool-dtu)
+    assert [p.value for p in out[dtu_pool][dtu.name]] == [92.0, 95.5, None]
+    assert [p.value for p in out[dtu_pool][storage.name]] == [40.0]
+    assert out[dtu_pool][cpu.name] == []
+    assert [p.value for p in out[vcore_pool][cpu.name]] == [8.0, 12.5]
+    assert out[vcore_pool][dtu.name] == [] and out[vcore_pool][storage.name] == []

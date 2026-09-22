@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from config.loader import load_config
-from config.models import VmSkuCatalog
+from config.models import FamilySkuCatalog
 from models import ColdFinding, ColdObservation, Resource
 from recommend.postgres import PostgresRecommendRules, recommend_postgres
 
@@ -42,11 +42,11 @@ def finding(size: str, cpu_p95: float = 7.2, memory_p95: float | None = None) ->
 
 
 @pytest.fixture
-def catalog(config_dir: Path) -> VmSkuCatalog:
-    return load_config(config_dir, "mg-x").postgres_skus
+def catalog(config_dir: Path) -> FamilySkuCatalog:
+    return load_config(config_dir, "mg-x").catalog_for("postgres", FamilySkuCatalog)
 
 
-def test_next_size_down_same_family(catalog: VmSkuCatalog) -> None:
+def test_next_size_down_same_family(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(
         finding("Standard_D8ds_v5", memory_p95=15.0), catalog, PostgresRecommendRules()
     )
@@ -54,17 +54,17 @@ def test_next_size_down_same_family(catalog: VmSkuCatalog) -> None:
     assert rec.confidence == "medium"
     assert "P95 CPU 7.2% over 14d is below 20%." in rec.reason
     assert "P95 memory 15% is below 30%." in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for PostgreSQL.")
+    assert "Pricing" not in rec.reason
 
 
-def test_without_memory_is_low_confidence(catalog: VmSkuCatalog) -> None:
+def test_without_memory_is_low_confidence(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(finding("Standard_D8ds_v5"), catalog, PostgresRecommendRules())
     assert rec.target_sku == "Standard_D4ds_v5"
     assert rec.confidence == "low"
     assert "Memory not evaluated (no memory_percent data)." in rec.reason
 
 
-def test_respects_min_vcpu_floor(catalog: VmSkuCatalog) -> None:
+def test_respects_min_vcpu_floor(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(
         finding("Standard_D8ds_v5", memory_p95=15.0),
         catalog,
@@ -74,24 +74,24 @@ def test_respects_min_vcpu_floor(catalog: VmSkuCatalog) -> None:
     assert "min_vcpu=8" in rec.reason
 
 
-def test_smallest_in_family_has_no_target(catalog: VmSkuCatalog) -> None:
+def test_smallest_in_family_has_no_target(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(finding("Standard_B1ms"), catalog, PostgresRecommendRules())
     assert rec.target_sku is None
     assert "already smallest allowed size" in rec.reason
     assert "Burstable" in rec.reason
 
 
-def test_case_insensitive_sku_lookup(catalog: VmSkuCatalog) -> None:
+def test_case_insensitive_sku_lookup(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(finding("standard_d8ds_v5"), catalog, PostgresRecommendRules())
     assert rec.target_sku == "Standard_D4ds_v5"
 
 
-def test_unknown_sku_low_confidence_no_target(catalog: VmSkuCatalog) -> None:
+def test_unknown_sku_low_confidence_no_target(catalog: FamilySkuCatalog) -> None:
     rec = recommend_postgres(finding("Standard_NC6"), catalog, PostgresRecommendRules())
     assert rec.target_sku is None
     assert rec.confidence == "low"
     assert "not in config/postgres-skus.yaml" in rec.reason
-    assert rec.reason.endswith("Pricing not implemented for PostgreSQL.")
+    assert "Pricing" not in rec.reason
 
 
 def test_rules_reject_unknown_keys() -> None:

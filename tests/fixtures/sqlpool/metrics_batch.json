@@ -1,0 +1,95 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.Sql/servers/elasticPools",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/POOL-DTU",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/POOL-DTU/providers/Microsoft.Insights/metrics/dtu_consumption_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "dtu_consumption_percent",
+            "localizedValue": "dtu_consumption_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 92.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 95.5
+                },
+                {
+                  "timeStamp": "2026-09-15T11:02:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/POOL-DTU/providers/Microsoft.Insights/metrics/storage_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "storage_percent",
+            "localizedValue": "storage_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 40.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.Sql/servers/elasticPools",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/pool-vcore",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/pool-vcore/providers/Microsoft.Insights/metrics/cpu_percent",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "cpu_percent",
+            "localizedValue": "cpu_percent"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 8.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 12.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

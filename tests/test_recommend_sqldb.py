@@ -9,8 +9,6 @@ from config.models import SqlSkuCatalog
 from models import ColdFinding, ColdObservation, Resource
 from recommend.sqldb import SqlDbRecommendRules, recommend_sqldb
 
-NOTE = " Pricing not implemented for SQL."
-
 
 def finding(
     sku_name: str,
@@ -59,7 +57,7 @@ def finding(
 
 @pytest.fixture
 def catalog(config_dir: Path) -> SqlSkuCatalog:
-    return load_config(config_dir, "mg-x").sql_skus
+    return load_config(config_dir, "mg-x").catalog_for("sqldb", SqlSkuCatalog)
 
 
 def test_dtu_database_drops_to_the_objective_that_covers_headroom(catalog: SqlSkuCatalog) -> None:
@@ -67,7 +65,7 @@ def test_dtu_database_drops_to_the_objective_that_covers_headroom(catalog: SqlSk
     assert rec.target_sku == "S2" and rec.confidence == "medium"
     assert "P95 DTU 20% over 14d is below 25%." in rec.reason
     assert "50 DTU covers P95 with 1.3x headroom." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_vcore_database_drops_to_the_smallest_covering_size(catalog: SqlSkuCatalog) -> None:
@@ -76,7 +74,7 @@ def test_vcore_database_drops_to_the_smallest_covering_size(catalog: SqlSkuCatal
     assert rec.target_sku == "GP_Gen5_2" and rec.confidence == "medium"
     assert "P95 CPU 10% over 14d is below 25%." in rec.reason
     assert "2 vCores cover P95 with 1.3x headroom." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_min_vcores_is_the_floor(catalog: SqlSkuCatalog) -> None:
@@ -89,14 +87,14 @@ def test_unknown_tier_cannot_be_recommended(catalog: SqlSkuCatalog) -> None:
     rec = recommend_sqldb(finding("PRS1", "PremiumRS", "dtu", 125), catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "low"
     assert "PRS1 not in config/sql-skus.yaml; cannot recommend." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_smallest_dtu_objective_has_nowhere_to_go(catalog: SqlSkuCatalog) -> None:
     rec = recommend_sqldb(finding("Basic", "Basic", "dtu", 5), catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "medium"
     assert "Basic is already the smallest Basic objective." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_database_already_at_min_vcores(catalog: SqlSkuCatalog) -> None:
@@ -104,7 +102,7 @@ def test_database_already_at_min_vcores(catalog: SqlSkuCatalog) -> None:
     rec = recommend_sqldb(cold, catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "medium"
     assert "GP_Gen5_2 is already at min_vcores=2." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_unknown_capacity_cannot_be_recommended(catalog: SqlSkuCatalog) -> None:
@@ -112,7 +110,7 @@ def test_unknown_capacity_cannot_be_recommended(catalog: SqlSkuCatalog) -> None:
     rec = recommend_sqldb(cold, catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "low"
     assert "vCore ladder or capacity unknown; cannot recommend." in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_vcore_sku_name_without_a_separator_gets_no_target(catalog: SqlSkuCatalog) -> None:
@@ -121,7 +119,7 @@ def test_vcore_sku_name_without_a_separator_gets_no_target(catalog: SqlSkuCatalo
     rec = recommend_sqldb(cold, catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "low"
     assert "SKU name S3 is not in the expected <tier>_<gen>_<vcores> form" in rec.reason
-    assert rec.reason.endswith(NOTE)
+    assert "Pricing" not in rec.reason
 
 
 def test_empty_catalog_cannot_be_recommended() -> None:

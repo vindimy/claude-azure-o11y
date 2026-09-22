@@ -3,7 +3,7 @@ from __future__ import annotations
 from models import ColdFinding, ColdObservation, Resource
 from recommend.cosmos import CosmosRecommendRules, recommend_cosmos
 
-VERIFY = "Account-level value; verify per container. Pricing not implemented for Cosmos DB."
+VERIFY = "Account-level value; verify per container."
 
 
 def finding(
