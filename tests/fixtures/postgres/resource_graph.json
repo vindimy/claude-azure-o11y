@@ -1,0 +1,10 @@
+{
+  "totalRecords": 2,
+  "count": 2,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-ready", "name": "pg-ready", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"owner": "alice@example.com", "assignment_group": "cloud-engineering", "car_id": "100"}, "skuName": "Standard_D4ds_v5", "tier": "GeneralPurpose", "state": "Ready", "version": "14", "storageGb": 128},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-stopped", "name": "pg-stopped", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"owner": "alice@example.com", "assignment_group": "cloud-engineering", "car_id": "100"}, "skuName": "Standard_B2s", "tier": "Burstable", "state": "Stopped", "version": "14", "storageGb": 32}
+  ]
+}

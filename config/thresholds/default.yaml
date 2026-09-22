@@ -51,3 +51,22 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
+  postgres:
+    namespace: Microsoft.DBforPostgreSQL/flexibleServers
+    metrics:
+      cpu:
+        metric_name: cpu_percent
+        ops_hot: 90
+        finops_cold: 20
+      memory:
+        metric_name: memory_percent
+        ops_hot: 90
+        finops_cold: 30
+      storage:
+        metric_name: storage_percent
+        ops_hot: 90
+      disk_iops:
+        metric_name: disk_iops_consumed_percentage
+        ops_hot: 90
+    recommend:
+      min_vcpu: 2
