@@ -53,3 +53,6 @@ __pycache__/
 .env
 deploy.env
 vm.env
+
+# Superpowers scratch (SDD ledgers, briefs, review packages)
+.superpowers/
