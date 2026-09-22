@@ -13,6 +13,7 @@ from resource_types import (
     sqldb,
     sqlmi,
     sqlpool,
+    storage,
     vm,
     vnet,
 )
@@ -31,4 +32,5 @@ TYPES: dict[str, ResourceTypeSpec] = {
     appserviceplan.SPEC.kind: appserviceplan.SPEC,
     redis.SPEC.kind: redis.SPEC,
     aks.SPEC.kind: aks.SPEC,
+    storage.SPEC.kind: storage.SPEC,
 }
