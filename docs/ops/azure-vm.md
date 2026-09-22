@@ -93,7 +93,7 @@ The run ends by printing the findings DCR ID (for the IAM repo) and `systemctl l
 Use this when the VM, or whoever installs on it, has no access to this repository, GitHub, or GitLab.
 A package holds the release bundle, the Ansible role, and a local installer, so the VM reaches only
 RHUI (`dnf`), a PyPI index (`pip`), and Azure. Built packages live in [releases/](../../releases/); the
-latest is `releases/o11y-alerting-vm-v2.tar.gz` with its `.sha256`. The result on the VM is the same layout,
+latest is `releases/o11y-alerting-vm-v3.tar.gz` with its `.sha256`. The result on the VM is the same layout,
 units, and timers as the SSH install, with `v<N>` as the release id instead of a commit SHA.
 
 ### Prerequisites
@@ -123,9 +123,9 @@ Azure management and ingestion endpoints, and `prices.azure.com`. In addition:
 ### Build a package (workstation, once per version)
 
 ```bash
-make vm-package VERSION=3                                  # releases/o11y-alerting-vm-v3.tar.gz + .sha256, from a clean HEAD
-scripts/build-vm-package.sh --version 3 --ref <sha|tag>    # from another commit
-scripts/build-vm-package.sh --version 3 --allow-dirty      # from the working tree; SOURCE_COMMIT gets -dirty
+make vm-package VERSION=4                                  # releases/o11y-alerting-vm-v4.tar.gz + .sha256, from a clean HEAD
+scripts/build-vm-package.sh --version 4 --ref <sha|tag>    # from another commit
+scripts/build-vm-package.sh --version 4 --allow-dirty      # from the working tree; SOURCE_COMMIT gets -dirty
 ```
 
 A version is built once: the script refuses to overwrite an existing file without `--force`. Commit
@@ -155,8 +155,8 @@ az rest --method get --query properties.immutableId -o tsv \
 ### Install (on the VM)
 
 ```bash
-sha256sum -c o11y-alerting-vm-v2.tar.gz.sha256
-tar xzf o11y-alerting-vm-v2.tar.gz && cd o11y-alerting-vm-v2
+sha256sum -c o11y-alerting-vm-v3.tar.gz.sha256
+tar xzf o11y-alerting-vm-v3.tar.gz && cd o11y-alerting-vm-v3
 chmod 600 ../package.env
 sudo ./install.sh --param-file ../package.env
 sudo ./install.sh --param-file ../package.env --dry-run true      # flags override the file
@@ -168,7 +168,7 @@ the pinned `ansible-core` into `.installer-venv` inside the package directory (t
 when set), asks IMDS for a token for `UAMI_RESOURCE_ID` and reads the client ID from it (which also
 proves the identity is attached), writes the extra vars to a `0600` temp file, and runs the packaged
 `ansible/playbook.yml` against `localhost`. From there the role does exactly what it does over SSH
-([above](#install)). `/opt/o11y-alerting/releases/v2/RELEASE` records what was installed.
+([above](#install)). `/opt/o11y-alerting/releases/v3/RELEASE` records what was installed.
 
 ### Update, rollback, and settings with packages
 

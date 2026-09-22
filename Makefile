@@ -12,6 +12,6 @@ image:
 # Install/update on a RHEL 9 VM (Path C). e.g. make vm-install PARAMS=vm.env ARGS='--release-ref <sha>'
 vm-install:
 	scripts/vm-install.sh $(if $(PARAMS),--param-file $(PARAMS)) $(ARGS)
-# Self-contained RHEL 9 VM package: no git/GitHub/GitLab on the VM (docs/ops/azure-vm.md). e.g. make vm-package VERSION=3
+# Self-contained RHEL 9 VM package: no git/GitHub/GitLab on the VM (docs/ops/azure-vm.md). e.g. make vm-package VERSION=4
 vm-package:
 	scripts/build-vm-package.sh --version $(VERSION) $(ARGS)
