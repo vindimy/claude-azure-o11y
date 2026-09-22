@@ -1,0 +1,167 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.Storage/storageAccounts",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/ST-COLD",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/ST-COLD/providers/Microsoft.Insights/metrics/Availability",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "Availability",
+            "localizedValue": "Availability"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 100.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 100.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/ST-COLD/providers/Microsoft.Insights/metrics/Transactions",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "Transactions",
+            "localizedValue": "Transactions"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 100.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/ST-COLD/providers/Microsoft.Insights/metrics/UsedCapacity",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "UsedCapacity",
+            "localizedValue": "Used capacity"
+          },
+          "unit": "Bytes",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 536870912000.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 536870912000.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.Storage/storageAccounts",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-hot",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-hot/providers/Microsoft.Insights/metrics/Availability",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "Availability",
+            "localizedValue": "Availability"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 99.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-hot/providers/Microsoft.Insights/metrics/Transactions",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "Transactions",
+            "localizedValue": "Transactions"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [
+                {
+                  "name": {
+                    "value": "ResponseType",
+                    "localizedValue": "Response type"
+                  },
+                  "value": "ServerBusyError"
+                }
+              ],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 3.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "total": 2.0
+                }
+              ]
+            },
+            {
+              "metadatavalues": [
+                {
+                  "name": {
+                    "value": "ResponseType",
+                    "localizedValue": "Response type"
+                  },
+                  "value": "ClientThrottlingError"
+                }
+              ],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 1.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

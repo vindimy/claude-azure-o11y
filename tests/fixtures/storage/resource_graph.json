@@ -1,0 +1,13 @@
+{
+  "totalRecords": 6,
+  "count": 6,
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-hot", "name": "st-hot", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "kind": "StorageV2", "skuName": "Standard_LRS", "tier": "Standard", "accessTier": "Hot", "state": "Succeeded", "hns": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-cold", "name": "st-cold", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "StorageV2", "skuName": "Standard_GRS", "tier": "Standard", "accessTier": "Hot", "state": "Succeeded", "hns": true},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-cool", "name": "st-cool", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "StorageV2", "skuName": "Standard_LRS", "tier": "Standard", "accessTier": "Cool", "state": "Succeeded", "hns": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-premium", "name": "st-premium", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "BlockBlobStorage", "skuName": "Premium_LRS", "tier": "Premium", "accessTier": null, "state": "Succeeded", "hns": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-v1", "name": "st-v1", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "Storage", "skuName": "Standard_LRS", "tier": "Standard", "accessTier": null, "state": "Succeeded", "hns": null},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Storage/storageAccounts/st-creating", "name": "st-creating", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "StorageV2", "skuName": "Standard_LRS", "tier": "Standard", "accessTier": "Hot", "state": "Creating", "hns": false}
+  ]
+}
