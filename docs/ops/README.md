@@ -55,8 +55,9 @@ union O11yOpsFindings_CL, O11yFinOpsFindings_CL
 
 | Change | Where | Then |
 |--------|-------|------|
-| thresholds, windows, tag names | `config/thresholds/default.yaml` or `config/thresholds/<mg-id>.yaml` | new image or release (config is packaged with the code) |
+| thresholds, windows, tag names, metrics per type | `config/thresholds/default.yaml` or `config/thresholds/<mg-id>.yaml` | new image or release (config is packaged with the code) |
+| which resource types run | `RESOURCE_TYPES=vm,sqldb` app setting / env (default: every configured type) | restart |
 | ignore resource groups | `config/ignore.yaml` | new image or release |
-| one resource's threshold | tag `o11y-threshold-cpu-hot=95` / `o11y-threshold-cpu-cold=10` on the resource | next run |
+| one resource's threshold | tag `o11y-threshold-<metric>-hot=95` / `o11y-threshold-<metric>-cold=10` on the resource (`<metric>` is the key in the thresholds file: `cpu`, `memory`, `dtu`, `ru`, …) | next run |
 | skip one resource | tag `o11y-exclude=true` on the resource | next run |
 | schedule, scope, dry run | `deploy.env` / `terraform.tfvars` / `vm.env`, then re-run the deploy with the same tag | restart is part of the deploy |

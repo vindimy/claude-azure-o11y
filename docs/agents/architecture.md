@@ -14,7 +14,9 @@ coverage, it has no routing by ownership, and it gives no control over threshold
 ## Pipeline
 
 One run is one mode. The two schedulers start the same `bootstrap.main(mode)`; the mode picks the metric
-window, the evaluator, and the table.
+window, the evaluator side, and the table. Inside a run the pipeline loops over the enabled resource
+types (`resource_types:` in the thresholds config, narrowed by `RESOURCE_TYPES`); every type goes through
+the same stages, and the rows of all types are written in one call at the end.
 
 ```mermaid
 flowchart TB
@@ -23,14 +25,15 @@ flowchart TB
     finops["finops: FINOPS_SCHEDULE_CRON<br/>default daily 06:00 UTC"]
   end
   ops & finops --> boot["bootstrap.main(mode)<br/>Settings from env, config/ for this MG,<br/>DefaultAzureCredential(AZURE_CLIENT_ID)"]
-  boot --> run["pipeline.run(mode)"]
-  run --> inv["inventory/: Azure Resource Graph<br/>one query per resource type, MG or subscription scope"]
-  inv --> filt["inventory/filters<br/>drop ignored RGs (config/ignore.yaml)<br/>and o11y-exclude=true resources"]
+  boot --> run["pipeline.run(mode)<br/>for each enabled type in resource_types/ (TYPES)"]
+  run --> inv["inventory/graph.py: Azure Resource Graph<br/>TYPES[kind].query + parse, MG or subscription scope"]
+  inv --> filt["inventory/filters<br/>drop ignored RGs (config/ignore.yaml), o11y-exclude=true,<br/>and what the type's active check rejects (stopped VM, paused DB)"]
   filt --> grp["group by (subscription, region)<br/>chunks of 50 resource IDs"]
-  grp --> met["metrics/: metrics:getBatch on the regional endpoint<br/>asyncio fan-out bounded by MAX_CONCURRENCY"]
-  met --> eval["evaluate/: this MG's thresholds<br/>default.yaml + mg-id.yaml, tag overrides"]
-  eval -->|ops: at or above hot| opsrow["notify/findings.ops_row"]
-  eval -->|finops: percentile below cold| rec["recommend/: smaller SKU in the same family<br/>+ Retail Prices monthly cost and saving"]
+  grp --> met["metrics/: one metrics:getBatch per chunk<br/>every metric this type needs for this mode, per-metric aggregation<br/>asyncio fan-out bounded by MAX_CONCURRENCY<br/>(vnet: no call, values come from Resource Graph)"]
+  met --> der["metrics/derive.py: raw series → metric keys<br/>applies_to, derived metrics (ratio, bytes/s of capacity)"]
+  der --> eval["evaluate/metric.py: this MG's thresholds<br/>default.yaml + mg-id.yaml, tag overrides, hot_when, reduce"]
+  eval -->|ops: one row per hot metric| opsrow["notify/findings.ops_row"]
+  eval -->|finops: every FinOps metric cold| rec["TYPES[kind].recommend → recommend/<type>.py<br/>+ Retail Prices cost and saving (VMs)"]
   rec --> finrow["notify/findings.finops_row"]
   opsrow & finrow --> sink["FindingsSink, one write per run"]
   sink -->|DRY_RUN=false| law["storage/law.py: Logs Ingestion API<br/>DCE, findings DCR, stream Custom-table"]
@@ -51,19 +54,21 @@ sequenceDiagram
   participant RP as Retail Prices
   participant LI as Logs Ingestion (DCE + DCR)
   S->>P: main(mode)
-  P->>RG: list_vms(scope) with scope = MG_ID, or SUBSCRIPTION_IDS when set
-  RG-->>P: VMs with type, region, SKU, tags, power state (403: PermissionMissing inventory)
-  P->>P: filter ignored RGs and excluded tags, group by (sub, region), chunk by 50
-  par one task per chunk, at most MAX_CONCURRENCY in flight
-    P->>M: query(region, sub, ids, Percentage CPU, window for this mode)
-    M-->>P: points per resource id (a failed chunk skips its VMs with chunk_failed)
+  loop each enabled resource type (a failing type is counted and the run continues)
+    P->>RG: list_resources(kind, scope) with scope = MG_ID, or SUBSCRIPTION_IDS when set
+    RG-->>P: resources with type, region, SKU, tags, type facts (403: PermissionMissing inventory)
+    P->>P: filter ignored RGs, excluded tags, inactive resources; group by (sub, region), chunk by 50
+    par one task per chunk, at most MAX_CONCURRENCY in flight
+      P->>M: query(region, sub, ids, namespace, [metric names + aggregations], window for this mode)
+      M-->>P: series per resource id and metric (a failed chunk skips its resources with chunk_failed)
+    end
+    P->>P: resolve_series (applies_to, derived), then evaluate_hot per metric or evaluate_cold per resource
+    opt finops, priced types (VM)
+      P->>RP: monthly_price(region, current SKU) and monthly_price(region, target SKU)
+      RP-->>P: prices, or None (pricing never fails the run)
+    end
   end
-  P->>P: evaluate_hot or evaluate_cold per VM, log every skip with a reason
-  opt finops only
-    P->>RP: monthly_price(region, current SKU) and monthly_price(region, target SKU)
-    RP-->>P: prices, or None (pricing never fails the run)
-  end
-  P->>LI: upload rows to Custom-table, once per run
+  P->>LI: upload rows of every type to Custom-table, once per run
   LI-->>P: ok, or 403 as PermissionMissing findings_ingest, or FindingsWriteFailed
   P-->>S: run complete log line + RunSummary
 ```
@@ -75,12 +80,20 @@ Use the Metrics Batch API
 `azure-monitor-querymetrics` `MetricsClient.query_resources()`. `azure-monitor-query` 2.x has no
 metrics client (see `docs/gotchas.md`).
 
-- One call covers one resource type, one region, and one subscription, with up to **50 resource IDs**.
-- Resource Graph supplies the inventory (type, region, SKU, tags), so batches are built without
-  per-subscription ARM listing.
-- VM guest metrics (memory, disk) come from **one** KQL query against the central LAW, filtered to the
-  resource IDs in scope.
+- One call covers one resource type, one region, and one subscription, with up to **50 resource IDs**,
+  and carries **every metric name** the type needs for the run mode with the union of their aggregations
+  (`Average`, `Maximum`, `Total`); each metric picks its own aggregation out of the response.
+- Resource Graph supplies the inventory (type, region, SKU, tags, and the type facts that decide which
+  metrics apply, e.g. a SQL database's purchasing model), so batches are built without per-subscription
+  ARM listing.
+- Some metrics are derived from two raw ones (`metrics/derive.py`): SQL MI storage % from
+  `storage_space_used_mb / reserved_storage_mb`, Event Hubs ingress % from `IncomingBytes` against the
+  namespace's throughput-unit capacity.
+- VM memory is the platform metric `Available Memory Percentage` (inverted: low is hot); guest-OS
+  metrics via AMA/DCR → LAW are collected elsewhere and are **not** read by this function.
 - VNET utilization comes from Resource Graph arithmetic only, with no Monitor calls.
+- Minimum grains differ per metric (Cosmos DB throughput metrics: PT5M); a type can override the window
+  granularity (`granularity:` in its config block).
 
 ## Scale
 
@@ -91,17 +104,18 @@ no code change.
 
 ## Resource types
 
+All seven are implemented (`src/resource_types/`, config key in parentheses). Rules and thresholds:
+[recommendations](recommendations.md), [thresholds](thresholds.md); row spellings: [findings](findings.md).
+
 | # | Type | Ops signal (hot) | FinOps signal (cold) | Metric source |
 |---|------|------------------|----------------------|---------------|
-| 1 | Virtual Machines (**MVP: CPU only**) | CPU, memory, disk space | Low CPU/memory → smaller SKU in same family | Platform: `Percentage CPU`. Guest: AMA→central LAW (`InsightsMetrics` / `Perf`) for memory + disk |
-| 2 | Azure SQL Database / Elastic Pool | CPU %, DTU/vCore %, storage % | Low DTU/vCore → lower tier | Platform |
-| 3 | Azure SQL Managed Instance | CPU %, storage % | Low vCore usage → fewer vCores | Platform |
-| 4 | PostgreSQL Flexible Server | CPU, memory, storage % | Low CPU/memory → smaller compute tier | Platform |
-| 5 | Cosmos DB | Normalized RU consumption, storage | Low normalized RU → lower provisioned RU or autoscale | Platform (`NormalizedRUConsumption`, `ProvisionedThroughput`) |
-| 6 | Event Hubs Namespace | Throttled requests, CPU (Premium/Dedicated) | Low incoming bytes/msgs vs TU/PU/CU → lower tier / fewer units | Platform |
-| 7 | Virtual Networks | Subnet IP utilization ≥ threshold | none (capacity, not cost) | Resource Graph math: address space minus allocated IPs minus 5 Azure-reserved per subnet |
-
-Guest-OS metrics apply to VMs only.
+| 1 | Virtual Machines (`vm`) | `Percentage CPU`, `Available Memory Percentage` (low), OS-disk and uncached VM IOPS/bandwidth % | Low CPU and low peak memory use → smaller SKU in same family | Platform only. Guest-OS metrics (disk space, per-process) are collected by AMA/DCRs elsewhere, not here |
+| 2 | Azure SQL Database (`sqldb`) / Elastic Pool (`sqlpool`) | DTU % or CPU % (by purchasing model), storage %, workers % | Low DTU/vCore → lower service objective / fewer vCores / smaller pool | Platform |
+| 3 | Azure SQL Managed Instance (`sqlmi`) | CPU %, storage % (derived from used/reserved MB) | Low CPU → fewer vCores | Platform |
+| 4 | PostgreSQL Flexible Server (`postgres`) | CPU, memory, storage %, disk IOPS % | Low CPU/memory → smaller compute SKU in family | Platform |
+| 5 | Cosmos DB (`cosmos`) | `NormalizedRUConsumption` (max), throttled request % | Low normalized RU → lower provisioned RU/s, or autoscale | Platform (`ProvisionedThroughput` / `AutoscaleMaxThroughput` as recommender inputs; PT5M grain) |
+| 6 | Event Hubs Namespace (`eventhub`) | `ThrottledRequests` (sum), CPU (Premium) | Low ingress bytes/s vs TU/PU capacity → fewer units | Platform (`IncomingBytes` Total vs capacity from `sku.capacity`) |
+| 7 | Virtual Network subnets (`vnet`) | Subnet IP utilization ≥ threshold | none (capacity, not cost) | Resource Graph math: address space minus allocated IPs minus 5 Azure-reserved per subnet |
 
 ## Deployment styles
 
@@ -191,10 +205,12 @@ deploy in every style. The VM path skips `host_storage` and `acr_pull` and has n
 
 ## Code boundaries
 
-- Every Azure call goes through a thin client in `inventory/`, `metrics/`, or `storage/` (Logs
-  Ingestion), behind the Protocols in `src/ports.py` and `src/notify/base.py`. `evaluate/`, `recommend/`,
-  and `notify/` (findings row builders) are SDK-free and take plain data (`src/models.py`), so tests can
-  swap the clients.
+- Every Azure call goes through a thin client in `inventory/graph.py`, `metrics/batch.py`, or
+  `storage/law.py` (Logs Ingestion), behind the Protocols in `src/ports.py` and `src/notify/base.py`.
+  `resource_types/` (queries, parsers, type rules), `evaluate/`, `recommend/`, and `notify/` (findings row
+  builders) are SDK-free and take plain data (`src/models.py`), so tests can swap the clients.
+- Everything type-specific lives in one `ResourceTypeSpec` per type (`src/resource_types/<type>.py`);
+  `pipeline.py`, the evaluators, and the row builders never branch on a type.
 - The one exception is `recommend/pricing.py`, the `RetailPriceClient` for the unauthenticated Retail
   Prices API. It takes an injected `httpx.AsyncClient`, needs no identity, and never fails the run.
 - Code makes no `azure-cli` calls.

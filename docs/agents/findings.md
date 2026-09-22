@@ -22,7 +22,7 @@ are published to the workspace. Column groups:
 
 - **Run:** `TimeGenerated` (run time), `RunId`, `ManagementGroupId`
 - **Resource:** `ResourceId`, `ResourceName`, `ResourceType`, `SubscriptionId`, `ResourceGroup`,
-  `Location`, `Sku`, `Tags`, `PortalUrl` (FinOps also has `OsType`)
+  `Location`, `Sku`, `Tags`, `PortalUrl` (FinOps also has `OsType`, filled for VMs only)
 - **Out-of-range metric:** `MetricNamespace`, `MetricName`, `MetricKey`, `Unit`, `Aggregation`,
   `ObservedValue`, `Threshold`, `ThresholdSource` (`config` or `tag`), `WindowStart`, `WindowEnd`,
   plus `LookbackMinutes` (Ops) or `LookbackDays`, `Granularity`,
@@ -30,6 +30,27 @@ are published to the workspace. Column groups:
 - **Recommendation (FinOps):** `RecommendedSku`, `Confidence`, `Reason`, `CurrentMonthlyCost`,
   `ProjectedMonthlyCost`, `EstimatedMonthlySaving`, `Currency`
 - **Ownership:** `Owner`, `AssignmentGroup`, `AssignmentGroupEmail`, `CarId`, `MissingTags`
+
+## Values per resource type
+
+`ResourceType` is the ARM type in lower case; alert rules filter on it. `Sku` and `RecommendedSku` use
+each type's own spelling. `Percentile` is 95, or 5 for inverted metrics (`hot_when: below`, e.g. VM
+available memory), and `Aggregation` says how the series was obtained (`Average`, `Maximum`, `Total`,
+`Average (derived)` for computed metrics such as SQL MI storage, `computed` for Resource Graph math).
+
+| Type | `ResourceType` | `Sku` | `RecommendedSku` | `MetricKey` values |
+|---|---|---|---|---|
+| VM | `microsoft.compute/virtualmachines` | `Standard_D4s_v5` | SKU name | `cpu`, `memory`, `os_disk_iops`, `os_disk_bandwidth`, `vm_uncached_iops`, `vm_uncached_bandwidth` |
+| SQL Database | `microsoft.sql/servers/databases` | `S3`, `GP_Gen5_8` | service objective / `GP_Gen5_4` | `dtu`, `cpu`, `app_cpu`, `storage`, `workers` |
+| SQL Elastic Pool | `microsoft.sql/servers/elasticpools` | `StandardPool 100`, `GP_Gen5 8` | `StandardPool 50` | `dtu`, `cpu`, `storage` |
+| SQL Managed Instance | `microsoft.sql/managedinstances` | `GP_Gen5 8 vCores` | `GP_Gen5 4 vCores` | `cpu`, `storage` |
+| PostgreSQL Flexible | `microsoft.dbforpostgresql/flexibleservers` | `Standard_D4ds_v5` | SKU name | `cpu`, `memory`, `storage`, `disk_iops` |
+| Cosmos DB | `microsoft.documentdb/databaseaccounts` | `provisioned` / `serverless` | `1200 RU/s`, `autoscale 4000 RU/s max` | `ru`, `throttled` |
+| Event Hubs | `microsoft.eventhub/namespaces` | `Standard 4 TU`, `Premium 1 PU`, `Dedicated` | `Standard 2 TU` | `throttled`, `cpu`, `ingress` |
+| VNET subnet | `microsoft.network/virtualnetworks/subnets` | the prefix list (`10.0.1.0/24`) | n/a (Ops-only) | `subnet_ip` |
+
+VNET rows are one per **subnet**: `ResourceId` is the subnet id, `ResourceName` is `<vnet>/<subnet>`,
+and `MetricNamespace` is `Microsoft.Network/virtualNetworks`.
 
 ## Ownership tags
 
@@ -79,7 +100,11 @@ Each run writes its table in one call. A failed write ends the run with `Finding
 scheduled run writes fresh rows (nothing is replayed). A 403 raises `PermissionMissing("findings_ingest")`.
 
 Runs are summarized in the structured `run complete` log (App Insights): counts, skips, ignored-RG count,
-excluded resource IDs, `RunId`, and write failures.
+excluded resource IDs, `RunId`, write failures, `type_failures` (a type whose inventory query failed;
+the run continues with the others), and a `by_type` breakdown. Skip reasons: `ignored_rg`,
+`excluded_by_tag`, `not_running` (VM), `not_online` (SQL DB), `not_ready` (pool, MI, PostgreSQL),
+`in_elastic_pool` (SQL DB, FinOps), `no_capacity_model` (Cosmos serverless, Event Hubs Dedicated, FinOps),
+`chunk_failed`, `no_ops_data`, `insufficient_finops_data`.
 
 ## Changing the schema
 

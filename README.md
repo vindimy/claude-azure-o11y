@@ -3,7 +3,9 @@
 Scheduled Azure Function (Python, custom container) that evaluates built-in Azure Monitor metrics across
 every subscription under a management group and writes **Ops findings** (hot resources →
 `O11yOpsFindings_CL`) and **FinOps findings** (cold resources with a downsizing recommendation and saving →
-`O11yFinOpsFindings_CL`) to a Log Analytics workspace. MVP scope: VM `Percentage CPU`. Table schema:
+`O11yFinOpsFindings_CL`) to a Log Analytics workspace. Covers VMs, Azure SQL (databases, elastic pools,
+managed instances), PostgreSQL Flexible Server, Cosmos DB, Event Hubs, and VNET subnet capacity, all from
+platform metrics or Resource Graph, with no agents. Table schema:
 [schema/findings-tables.json](schema/findings-tables.json) · [docs/agents/findings.md](docs/agents/findings.md).
 
 Design and rationale: [CLAUDE.md](CLAUDE.md) → [docs/agents/](docs/agents/) · spec: [docs/superpowers/specs](docs/superpowers/specs/) ·
@@ -54,7 +56,10 @@ is a reference definition of that UAMI and its role assignments for the IAM repo
 
 ## Configuration
 
-`config/thresholds/default.yaml` (per-MG overrides in `config/thresholds/<mg-id>.yaml`), `config/ignore.yaml`
-(resource-group regex ignore list), `config/assignment-groups.yaml`, `config/vm-skus.yaml`.
-Per-resource tags `o11y-threshold-cpu-hot=95` / `o11y-threshold-cpu-cold=10` override thresholds; `o11y-exclude=true`
-skips a resource (it is still listed in the run's `run complete` log).
+`config/thresholds/default.yaml` (one block per resource type and metric; per-MG overrides in
+`config/thresholds/<mg-id>.yaml`), `config/ignore.yaml` (resource-group regex ignore list),
+`config/assignment-groups.yaml`, and the SKU catalogs `config/vm-skus.yaml`, `config/postgres-skus.yaml`,
+`config/sql-skus.yaml`. Per-resource tags `o11y-threshold-<metric>-hot=95` / `o11y-threshold-<metric>-cold=10`
+override thresholds; `o11y-exclude=true` skips a resource (it is still listed in the run's `run complete`
+log). `RESOURCE_TYPES=vm,sqldb` (optional setting) runs a subset of the configured types for a staged rollout.
+Metric fields and the FinOps finding rule: [docs/agents/thresholds.md](docs/agents/thresholds.md).

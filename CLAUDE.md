@@ -7,8 +7,10 @@ group, it reads built-in Azure Monitor metrics and writes one row per finding to
 - **FinOps findings** for cold resources, with a downsizing recommendation and estimated saving →
   `O11yFinOpsFindings_CL`, on a daily FinOps run
 
-Alerting and routing are built on those tables downstream; the function sends nothing itself. MVP is VM
-CPU only. Owner: Dmitriy (Cloud Engineering).
+Alerting and routing are built on those tables downstream; the function sends nothing itself. Supported
+types (`src/resource_types/`): VMs (platform metrics only; guest metrics come from DCRs elsewhere), Azure
+SQL Database, SQL Elastic Pool, SQL Managed Instance, PostgreSQL Flexible Server, Cosmos DB, Event Hubs,
+and VNET subnets. Owner: Dmitriy (Cloud Engineering).
 
 ## Commands
 
@@ -31,9 +33,12 @@ CPU only. Owner: Dmitriy (Cloud Engineering).
 - **Stateless runs.** The app keeps no state of its own; storage holds only Functions host state. Findings
   go to the two LAW tables; their schema lives only in `schema/findings-tables.json`.
 - **Thin clients.** Azure calls live only in `inventory/`, `metrics/`, and `storage/`; the one exception is
-  the unauthenticated Retail Prices client, `recommend/pricing.py`.
+  the unauthenticated Retail Prices client, `recommend/pricing.py`. Resource Graph queries and parsers are
+  pure and live with their type in `src/resource_types/<type>.py`.
 - **Pinned APIs.** When an Azure API surprises you, pin its API version and record it in `docs/gotchas.md`.
-- **Small PRs.** One resource type or one schema change per PR.
+- **Small PRs.** One resource type or one schema change per PR. Adding a type = one `resource_types/`
+  module, one `recommend/` module, one config block, fixtures; the pipeline does not change
+  ([roadmap](docs/agents/roadmap.md)).
 
 ## Detailed instructions
 
