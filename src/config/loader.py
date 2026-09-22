@@ -11,9 +11,11 @@ from config.models import (
     AppConfig,
     AssignmentGroups,
     IgnoreConfig,
+    SqlSkuCatalog,
     Thresholds,
     VmSkuCatalog,
 )
+from resource_types import TYPES
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -40,11 +42,25 @@ def load_config(config_dir: Path, mg_id: str) -> AppConfig:
         _read_yaml(config_dir / "thresholds" / "default.yaml"),
         _read_yaml(config_dir / "thresholds" / f"{mg_id}.yaml"),
     )
+    thresholds = Thresholds.model_validate(thresholds_raw)
+    unknown = set(thresholds.resource_types) - set(TYPES)
+    if unknown:
+        raise ValueError(
+            f"thresholds: unknown resource types {sorted(unknown)}; known: {sorted(TYPES)}"
+        )
+    # Each type's `recommend:` block is validated by that type's own rules model.
+    rules = {
+        kind: TYPES[kind].rules_model.model_validate(cfg.recommend)
+        for kind, cfg in thresholds.resource_types.items()
+    }
     return AppConfig(
-        thresholds=Thresholds.model_validate(thresholds_raw),
+        thresholds=thresholds,
         ignore=IgnoreConfig.model_validate(_read_yaml(config_dir / "ignore.yaml")),
         assignment_groups=AssignmentGroups.model_validate(
             _read_yaml(config_dir / "assignment-groups.yaml")
         ),
         vm_skus=VmSkuCatalog.model_validate(_read_yaml(config_dir / "vm-skus.yaml")),
+        postgres_skus=VmSkuCatalog.model_validate(_read_yaml(config_dir / "postgres-skus.yaml")),
+        sql_skus=SqlSkuCatalog.model_validate(_read_yaml(config_dir / "sql-skus.yaml")),
+        rules=rules,
     )

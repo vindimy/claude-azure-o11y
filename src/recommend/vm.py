@@ -5,18 +5,40 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
-from config.models import VmRecommendRules, VmSkuCatalog
-from models import ColdFinding, Recommendation
+from pydantic import BaseModel, ConfigDict
+
+from config.models import VmSkuCatalog
+from models import ColdFinding, Confidence, Recommendation
+
+
+class VmRecommendRules(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    min_vcpu: int = 1
 
 
 def recommend_vm(
     finding: ColdFinding, catalog: VmSkuCatalog, rules: VmRecommendRules
 ) -> Recommendation:
-    size = finding.resource.vm_size
-    evidence = (
-        f"P95 CPU {finding.observed_p95:g}% over {finding.lookback_days}d is below "
-        f"{finding.threshold:g}%. Memory not evaluated (MVP)."
-    )
+    size = finding.resource.sku
+    cpu = finding.observation("cpu")
+    mem = finding.observation("memory")
+    parts: list[str] = []
+    if cpu is not None:
+        parts.append(
+            f"P{cpu.percentile} CPU {cpu.value:g}% over {finding.lookback_days}d is below "
+            f"{cpu.threshold:g}%."
+        )
+    confidence: Confidence
+    if mem is not None:
+        parts.append(
+            f"P{mem.percentile} available memory {mem.value:g}% is above {mem.threshold:g}% "
+            f"(peak use {100 - mem.value:g}%)."
+        )
+        confidence = "medium"
+    else:
+        parts.append("Memory not evaluated (no Available Memory Percentage data).")
+        confidence = "low"
+    evidence = " ".join(parts)
     current = catalog.get(size)
     if current is None:
         return Recommendation(
@@ -34,7 +56,7 @@ def recommend_vm(
         return Recommendation(
             finding=finding,
             target_sku=None,
-            confidence="medium",
+            confidence=confidence,
             reason=(
                 f"{evidence} {size} is already smallest allowed size in family "
                 f"{current.family} (min_vcpu={rules.min_vcpu})."
@@ -44,7 +66,7 @@ def recommend_vm(
     return Recommendation(
         finding=finding,
         target_sku=target_name,
-        confidence="medium",
+        confidence=confidence,
         reason=f"{evidence} Next smaller size in family {current.family}.",
     )
 

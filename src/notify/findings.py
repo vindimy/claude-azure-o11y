@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any
 
 from config.models import AssignmentGroups, FinopsWindow, MetricThreshold, TagNames
-from models import HotAlert, Recommendation, VmResource
+from models import HotAlert, Recommendation, Resource
 
 OPS_TABLE = "O11yOpsFindings_CL"
 FINOPS_TABLE = "O11yFinOpsFindings_CL"
@@ -35,7 +35,7 @@ class RunContext:
 
 @dataclass(frozen=True)
 class MetricContext:
-    """What was measured and over which window; shared by every row of one table in a run."""
+    """What was measured and over which window; shared by every row of one metric in a run."""
 
     namespace: str
     metric_key: str
@@ -57,27 +57,27 @@ def _money(v: Decimal | None) -> float | None:
     return None if v is None else float(round(v, 2))
 
 
-def _resource_columns(vm: VmResource, namespace: str) -> Row:
+def _resource_columns(r: Resource) -> Row:
     return {
-        "ResourceId": vm.id,
-        "ResourceName": vm.name,
-        "ResourceType": namespace.lower(),
-        "SubscriptionId": vm.subscription_id,
-        "ResourceGroup": vm.resource_group,
-        "Location": vm.location,
-        "Sku": vm.vm_size,
-        "PortalUrl": portal_url(vm.id),
-        "Tags": dict(vm.tags),
+        "ResourceId": r.id,
+        "ResourceName": r.name,
+        "ResourceType": r.type.lower(),
+        "SubscriptionId": r.subscription_id,
+        "ResourceGroup": r.resource_group,
+        "Location": r.location,
+        "Sku": r.sku,
+        "PortalUrl": portal_url(r.id),
+        "Tags": dict(r.tags),
     }
 
 
-def ownership_columns(vm: VmResource, ctx: RunContext) -> Row:
+def ownership_columns(r: Resource, ctx: RunContext) -> Row:
     """Ownership tags plus the tags that are missing, malformed (owner) or unmapped (group)."""
     t = ctx.tags
-    owner = vm.tag(t.owner) or ""
-    group = vm.tag(t.assignment_group) or ""
+    owner = r.tag(t.owner) or ""
+    group = r.tag(t.assignment_group) or ""
     group_email = ctx.assignment_groups.email_for(group) or ""
-    car_id = vm.tag(t.car_id) or ""
+    car_id = r.tag(t.car_id) or ""
     missing = [
         name
         for name, ok in (
@@ -96,12 +96,12 @@ def ownership_columns(vm: VmResource, ctx: RunContext) -> Row:
     }
 
 
-def _common(vm: VmResource, ctx: RunContext, m: MetricContext) -> Row:
+def _common(r: Resource, ctx: RunContext, m: MetricContext) -> Row:
     return {
         "TimeGenerated": iso(ctx.run_at),
         "RunId": ctx.run_id,
         "ManagementGroupId": ctx.mg_id,
-        **_resource_columns(vm, m.namespace),
+        **_resource_columns(r),
         "MetricNamespace": m.namespace,
         "MetricName": m.metric.metric_name,
         "MetricKey": m.metric_key,
@@ -109,7 +109,7 @@ def _common(vm: VmResource, ctx: RunContext, m: MetricContext) -> Row:
         "Aggregation": m.aggregation,
         "WindowStart": iso(m.window_start),
         "WindowEnd": iso(m.window_end),
-        **ownership_columns(vm, ctx),
+        **ownership_columns(r, ctx),
     }
 
 
@@ -127,10 +127,10 @@ def finops_row(rec: Recommendation, ctx: RunContext, m: MetricContext, fin: Fino
     f = rec.finding
     return {
         **_common(f.resource, ctx, m),
-        "OsType": f.resource.os_type,
+        "OsType": str(f.resource.prop("os_type", "")),
         "Granularity": fin.granularity,
-        "Percentile": fin.percentile,
-        "ObservedValue": f.observed_p95,
+        "Percentile": f.percentile,
+        "ObservedValue": f.observed,
         "Threshold": f.threshold,
         "ThresholdSource": f.threshold_source,
         "LookbackDays": f.lookback_days,

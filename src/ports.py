@@ -9,11 +9,11 @@ from decimal import Decimal
 from typing import Protocol
 
 from metrics.batch import MetricWindow
-from models import MetricPoint, Scope, VmResource
+from models import MetricRequest, Resource, Scope, Series
 
 
 class InventoryPort(Protocol):
-    async def list_vms(self, scope: Scope) -> list[VmResource]: ...
+    async def list_resources(self, kind: str, scope: Scope) -> list[Resource]: ...
 
 
 class MetricsPort(Protocol):
@@ -23,9 +23,9 @@ class MetricsPort(Protocol):
         subscription_id: str,
         resource_ids: list[str],
         namespace: str,
-        metric_name: str,
+        metrics: list[MetricRequest],
         window: MetricWindow,
-    ) -> dict[str, list[MetricPoint]]: ...
+    ) -> dict[str, Series]: ...
 
 
 class PricingPort(Protocol):

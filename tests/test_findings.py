@@ -10,8 +10,8 @@ import pytest
 
 from config.loader import load_config
 from config.models import AppConfig
-from evaluate.vm import evaluate_vm
-from models import ColdFinding, HotAlert, MetricPoint, Recommendation, VmResource
+from evaluate.metric import evaluate_hot
+from models import ColdFinding, HotAlert, MetricPoint, Recommendation, Resource
 from notify.findings import (
     FINOPS_TABLE,
     OPS_TABLE,
@@ -38,17 +38,18 @@ def schema(repo_root: Path) -> dict[str, Any]:
     return data["tables"]
 
 
-def vm(tags: dict[str, str] | None = None) -> VmResource:
-    return VmResource(
+def vm(tags: dict[str, str] | None = None) -> Resource:
+    return Resource(
+        kind="vm",
         id="/subscriptions/s1/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm1",
         name="vm1",
+        type="microsoft.compute/virtualmachines",
         subscription_id="s1",
         resource_group="rg-app",
         location="eastus",
-        vm_size="Standard_D8s_v5",
-        os_type="Linux",
-        power_state="PowerState/running",
+        sku="Standard_D8s_v5",
         tags=tags or {},
+        props={"os_type": "Linux", "power_state": "PowerState/running"},
     )
 
 
@@ -62,7 +63,7 @@ def ctx(cfg: AppConfig) -> RunContext:
 
 
 def mctx(cfg: AppConfig, aggregation: str = "average") -> MetricContext:
-    vm_cfg = cfg.thresholds.resource_types.vm
+    vm_cfg = cfg.thresholds.resource_types["vm"]
     return MetricContext(
         vm_cfg.namespace, "cpu", vm_cfg.metrics["cpu"], aggregation, NOW - timedelta(hours=1), NOW
     )
@@ -71,7 +72,7 @@ def mctx(cfg: AppConfig, aggregation: str = "average") -> MetricContext:
 def sample_rows(cfg: AppConfig) -> dict[str, dict[str, Any]]:
     tags = {"owner": "a@example.com", "assignment_group": "cloud-engineering", "car_id": "7"}
     hot = HotAlert(vm(tags), "cpu", 97.5, 90, 60)
-    cold = ColdFinding(vm(tags), "cpu", 6.1, 20, 14, 0.98)
+    cold = ColdFinding(vm(tags), "cpu", 6.1, 95, 20, 14, 0.98)
     rec = Recommendation(
         cold, "Standard_D4s_v5", "medium", "why", Decimal("560.64"), Decimal("280.32")
     )
@@ -115,6 +116,7 @@ def test_ops_row_values(cfg: AppConfig) -> None:
 
 def test_finops_row_values(cfg: AppConfig) -> None:
     row = sample_rows(cfg)[FINOPS_TABLE]
+    assert row["ResourceType"] == "microsoft.compute/virtualmachines"
     assert row["RecommendedSku"] == "Standard_D4s_v5" and row["Sku"] == "Standard_D8s_v5"
     assert row["EstimatedMonthlySaving"] == 280.32
     assert row["Percentile"] == 95 and row["Granularity"] == "PT1H"
@@ -122,7 +124,7 @@ def test_finops_row_values(cfg: AppConfig) -> None:
 
 
 def test_finops_row_without_pricing_or_target(cfg: AppConfig) -> None:
-    rec = Recommendation(ColdFinding(vm(), "cpu", 6.1, 20, 14, 1.0), None, "low", "unknown sku")
+    rec = Recommendation(ColdFinding(vm(), "cpu", 6.1, 95, 20, 14, 1.0), None, "low", "unknown sku")
     row = finops_row(rec, ctx(cfg), mctx(cfg), cfg.thresholds.windows.finops)
     assert row["RecommendedSku"] == ""
     assert row["CurrentMonthlyCost"] is None and row["EstimatedMonthlySaving"] is None
@@ -156,9 +158,10 @@ def test_unmapped_group_keeps_tag_value(cfg: AppConfig) -> None:
 def test_threshold_source_tag_flows_to_row(cfg: AppConfig) -> None:
     th = cfg.thresholds
     points = [MetricPoint(NOW, 80.0)]
-    ev = evaluate_vm(vm({"o11y-threshold-cpu-hot": "75"}), points, [], th)
-    assert ev.hot is not None
-    row = ops_row(ev.hot, ctx(cfg), mctx(cfg))
+    cpu = th.resource_types["vm"].metrics["cpu"]
+    hot, _ = evaluate_hot(vm({"o11y-threshold-cpu-hot": "75"}), points, "cpu", cpu, th)
+    assert hot is not None
+    row = ops_row(hot, ctx(cfg), mctx(cfg))
     assert row["Threshold"] == 75 and row["ThresholdSource"] == "tag"
 
 

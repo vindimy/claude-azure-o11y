@@ -1,4 +1,9 @@
-"""Orchestrates one evaluation run (Ops or FinOps). No SDK imports; clients arrive through ports."""
+"""Orchestrates one evaluation run (Ops or FinOps). No SDK imports; clients arrive through ports.
+
+One run loops over the enabled resource types (thresholds config order, narrowed by
+RESOURCE_TYPES). Each type is inventoried, filtered, fetched in batches, evaluated, and turned
+into rows; the rows of every type are written to the mode's table in one call at the end.
+"""
 
 from __future__ import annotations
 
@@ -6,31 +11,34 @@ import asyncio
 import logging
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from config.models import AppConfig
+from config.models import AppConfig, MetricThreshold, ResourceTypeThresholds
 from config.settings import Settings
 from errors import PermissionMissing
-from evaluate.vm import evaluate_cold, evaluate_hot
-from inventory.filters import filter_vms
+from evaluate.metric import evaluate_cold, evaluate_hot
+from inventory.filters import filter_resources
 from metrics.batch import MetricWindow, chunk
-from models import MetricPoint, RunSummary, Skip, VmResource
+from metrics.derive import requests_for, resolve_series
+from models import MetricRequest, Resource, RunSummary, Series, Skip
 from notify.base import FindingsSink
 from notify.findings import (
     FINOPS_TABLE,
     OPS_TABLE,
     MetricContext,
+    Row,
     RunContext,
     finops_row,
     ops_row,
 )
 from ports import InventoryPort, MetricsPort, PricingPort
-from recommend.vm import recommend_vm, with_pricing
+from recommend.vm import with_pricing
+from resource_types import TYPES
+from resource_types.registry import ResourceTypeSpec
 
 log = logging.getLogger(__name__)
-METRIC_KEY = "cpu"
 
 # One timer trigger per mode: Ops every few minutes, FinOps once a day.
 RunMode = Literal["ops", "finops"]
@@ -46,31 +54,31 @@ class Clients:
 
 @dataclass
 class _ChunkResult:
-    vms: list[VmResource]
-    points: dict[str, list[MetricPoint]]
+    resources: list[Resource]
+    series: dict[str, Series] = field(default_factory=dict)
     error: str | None = None
 
 
 async def _fetch_chunk(
     metrics: MetricsPort,
-    vms: list[VmResource],
+    resources: list[Resource],
     namespace: str,
-    metric_name: str,
+    requests: list[MetricRequest],
     window: MetricWindow,
     sem: asyncio.Semaphore,
 ) -> _ChunkResult:
-    region, sub = vms[0].location, vms[0].subscription_id
-    ids = [v.id for v in vms]
+    region, sub = resources[0].location, resources[0].subscription_id
+    ids = [r.id for r in resources]
     async with sem:
         try:
-            points = await metrics.query(region, sub, ids, namespace, metric_name, window)
+            series = await metrics.query(region, sub, ids, namespace, requests, window)
         except Exception as e:  # noqa: BLE001 - one bad chunk must not kill the run
             log.exception(
                 "metrics chunk failed",
                 extra={"region": region, "subscription": sub, "count": len(ids)},
             )
-            return _ChunkResult(vms, {}, error=f"{type(e).__name__}: {e}")
-    return _ChunkResult(vms, points)
+            return _ChunkResult(resources, error=f"{type(e).__name__}: {e}")
+    return _ChunkResult(resources, series)
 
 
 class FindingsWriteFailed(RuntimeError):
@@ -102,6 +110,156 @@ def _log_skip(skip: Skip, summary: RunSummary) -> None:
     )
 
 
+def _metric_ctx(
+    type_cfg: ResourceTypeThresholds,
+    key: str,
+    cfg: MetricThreshold,
+    spec: ResourceTypeSpec,
+    window: MetricWindow,
+) -> MetricContext:
+    if spec.metric_source == "inventory":
+        label = "computed"
+    elif cfg.derive:
+        label = f"{cfg.aggregation} (derived)"
+    else:
+        label = cfg.aggregation
+    return MetricContext(type_cfg.namespace, key, cfg, label, window.start, window.end)
+
+
+async def _fetch_all(
+    clients: Clients,
+    settings: Settings,
+    resources: list[Resource],
+    namespace: str,
+    requests: list[MetricRequest],
+    window: MetricWindow,
+) -> list[_ChunkResult]:
+    groups: dict[tuple[str, str], list[Resource]] = defaultdict(list)
+    for r in resources:
+        groups[(r.subscription_id, r.location)].append(r)
+    sem = asyncio.Semaphore(settings.max_concurrency)
+    tasks = []
+    for group in groups.values():
+        by_id = {r.id: r for r in group}
+        for ids in chunk([r.id for r in group], settings.batch_size):
+            batch = [by_id[i] for i in ids]
+            tasks.append(_fetch_chunk(clients.metrics, batch, namespace, requests, window, sem))
+    return list(await asyncio.gather(*tasks))
+
+
+async def _run_type(
+    kind: str,
+    settings: Settings,
+    config: AppConfig,
+    clients: Clients,
+    mode: RunMode,
+    now: datetime,
+    run_ctx: RunContext,
+    summary: RunSummary,
+) -> list[Row]:
+    spec = TYPES[kind]
+    th = config.thresholds
+    type_cfg = th.resource_types[kind]
+    ts = summary.for_type(kind)
+
+    # 1. Inventory + filters
+    resources = await clients.inventory.list_resources(kind, settings.scope)
+    ts.inventory_total = len(resources)
+    summary.inventory_total += len(resources)
+    filtered = filter_resources(
+        resources, th.tags, config.ignore.patterns_for(settings.mg_id), spec.active
+    )
+    ts.kept = len(filtered.kept)
+    summary.ignored_rg_count += filtered.ignored_rg_count
+    summary.excluded.extend(filtered.excluded)
+    for s in filtered.skips:
+        _log_skip(s, summary)
+    log.info(
+        "inventory",
+        extra={
+            "kind": kind,
+            "total": len(resources),
+            "kept": len(filtered.kept),
+            "scope": settings.scope.kind,
+        },
+    )
+
+    # 2. Metrics for this mode's window only, batched per (subscription, region)
+    if mode == "ops":
+        window = MetricWindow.ops(th.windows.ops, now, type_cfg.granularity.ops)
+    else:
+        window = MetricWindow.finops(th.windows.finops, now, type_cfg.granularity.finops)
+    requests = requests_for(type_cfg, mode)
+    raw: dict[str, Series] = {}
+    if spec.metric_source == "monitor" and requests:
+        for res in await _fetch_all(
+            clients, settings, filtered.kept, type_cfg.namespace, requests, window
+        ):
+            if res.error:
+                ts.chunk_failures += 1
+                summary.chunk_failures += 1
+                for r in res.resources:
+                    _log_skip(Skip(r.id, "chunk_failed", res.error), summary)
+                continue
+            raw.update(res.series)
+        evaluable = [r for r in filtered.kept if r.id in raw]
+    else:
+        evaluable = list(filtered.kept)
+
+    # 3. Evaluate this mode's side and build rows
+    rows: list[Row] = []
+    for r in evaluable:
+        ts.evaluated += 1
+        summary.evaluated += 1
+        series = resolve_series(
+            r, type_cfg, raw.get(r.id, {}), mode, window.granularity, now, spec.metric_source
+        )
+        if mode == "ops":
+            for key, points in series.items():
+                cfg = type_cfg.metrics[key]
+                hot, skips = evaluate_hot(r, points, key, cfg, th)
+                for s in skips:
+                    _log_skip(s, summary)
+                if hot is None:
+                    continue
+                rows.append(ops_row(hot, run_ctx, _metric_ctx(type_cfg, key, cfg, spec, window)))
+                log.warning(
+                    "ops finding",
+                    extra={"resource_id": r.id, "metric": key, "observed": hot.observed},
+                )
+            continue
+        skip = spec.finops_skip(r)
+        if skip is not None:
+            _log_skip(skip, summary)
+            continue
+        cold, skips = evaluate_cold(r, series, type_cfg, th, window.granularity)
+        for s in skips:
+            _log_skip(s, summary)
+        if cold is None or spec.recommend is None:
+            continue
+        rec = spec.recommend(cold, config)
+        if spec.priced:
+            os_type = str(r.prop("os_type", ""))
+            current = await clients.pricing.monthly_price(r.location, r.sku, os_type)
+            projected = (
+                await clients.pricing.monthly_price(r.location, rec.target_sku, os_type)
+                if rec.target_sku
+                else None
+            )
+            rec = with_pricing(rec, current, projected)
+        cfg = type_cfg.metrics[cold.metric]
+        rows.append(
+            finops_row(
+                rec,
+                run_ctx,
+                _metric_ctx(type_cfg, cold.metric, cfg, spec, window),
+                th.windows.finops,
+            )
+        )
+    ts.findings = len(rows)
+    return rows
+
+
 async def run(
     settings: Settings,
     config: AppConfig,
@@ -113,45 +271,6 @@ async def run(
     now = now or datetime.now(UTC)
     summary = RunSummary(mg_id=settings.mg_id, mode=mode, started_at=now)
     th = config.thresholds
-    vm_cfg = th.resource_types.vm
-    metric_cfg = vm_cfg.metrics[METRIC_KEY]
-
-    # 1. Inventory + filters
-    all_vms = await clients.inventory.list_vms(settings.scope)
-    summary.inventory_total = len(all_vms)
-    filtered = filter_vms(all_vms, th.tags, config.ignore.patterns_for(settings.mg_id))
-    summary.ignored_rg_count = filtered.ignored_rg_count
-    summary.excluded = filtered.excluded
-    for s in filtered.skips:
-        _log_skip(s, summary)
-    log.info(
-        "inventory",
-        extra={"total": len(all_vms), "kept": len(filtered.kept), "scope": settings.scope.kind},
-    )
-
-    # 2. Metrics for this mode's window only, batched per (subscription, region)
-    if mode == "ops":
-        window = MetricWindow.ops(th.windows.ops, now)
-        aggregation = th.windows.ops.aggregation
-    else:
-        window = MetricWindow.finops(th.windows.finops, now)
-        aggregation = th.windows.finops.aggregation
-    groups: dict[tuple[str, str], list[VmResource]] = defaultdict(list)
-    for vm in filtered.kept:
-        groups[(vm.subscription_id, vm.location)].append(vm)
-    sem = asyncio.Semaphore(settings.max_concurrency)
-    tasks = []
-    for vms in groups.values():
-        by_id = {v.id: v for v in vms}
-        for ids in chunk([v.id for v in vms], settings.batch_size):
-            batch = [by_id[i] for i in ids]
-            tasks.append(
-                _fetch_chunk(
-                    clients.metrics, batch, vm_cfg.namespace, metric_cfg.metric_name, window, sem
-                )
-            )
-    results = await asyncio.gather(*tasks)
-
     run_ctx = RunContext(
         run_id=run_id or str(uuid.uuid4()),
         mg_id=settings.mg_id,
@@ -160,44 +279,18 @@ async def run(
         assignment_groups=config.assignment_groups,
         currency=settings.pricing_currency,
     )
-    metric_ctx = MetricContext(
-        vm_cfg.namespace, METRIC_KEY, metric_cfg, aggregation, window.start, window.end
-    )
 
-    # 3. Evaluate this mode's side and build rows
-    rows: list[dict[str, Any]] = []
-    for res in results:
-        if res.error:
-            summary.chunk_failures += 1
-            for vm in res.vms:
-                _log_skip(Skip(vm.id, "chunk_failed", res.error), summary)
-            continue
-        for vm in res.vms:
-            summary.evaluated += 1
-            points = res.points.get(vm.id, [])
-            if mode == "ops":
-                hot, skips = evaluate_hot(vm, points, th, METRIC_KEY)
-                if hot is not None:
-                    rows.append(ops_row(hot, run_ctx, metric_ctx))
-                    log.warning(
-                        "ops finding", extra={"resource_id": vm.id, "observed": hot.observed}
-                    )
-            else:
-                cold, skips = evaluate_cold(vm, points, th, METRIC_KEY)
-                if cold is not None:
-                    rec = recommend_vm(cold, config.vm_skus, vm_cfg.recommend)
-                    current = await clients.pricing.monthly_price(
-                        vm.location, vm.vm_size, vm.os_type
-                    )
-                    projected = (
-                        await clients.pricing.monthly_price(vm.location, rec.target_sku, vm.os_type)
-                        if rec.target_sku
-                        else None
-                    )
-                    priced = with_pricing(rec, current, projected)
-                    rows.append(finops_row(priced, run_ctx, metric_ctx, th.windows.finops))
-            for s in skips:
-                _log_skip(s, summary)
+    rows: list[Row] = []
+    for kind in settings.resource_type_list(list(th.resource_types)):
+        try:
+            rows.extend(
+                await _run_type(kind, settings, config, clients, mode, now, run_ctx, summary)
+            )
+        except PermissionMissing:
+            raise
+        except Exception:  # noqa: BLE001 - one type must not kill the run
+            summary.type_failures += 1
+            log.exception("resource type failed", extra={"kind": kind})
     summary.findings = len(rows)
 
     # 4. One write per run
@@ -216,8 +309,10 @@ async def run(
             "write_failures": summary.write_failures,
             "skips": summary.skips,
             "ignored_rg_count": summary.ignored_rg_count,
-            "excluded": [v.id for v in summary.excluded],
+            "excluded": [r.id for r in summary.excluded],
             "chunk_failures": summary.chunk_failures,
+            "type_failures": summary.type_failures,
+            "by_type": {k: vars(v) for k, v in summary.by_type.items()},
             "destinations": summary.destinations,
         },
     )

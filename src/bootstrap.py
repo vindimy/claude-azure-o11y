@@ -13,7 +13,7 @@ from config.loader import load_config
 from config.models import AppConfig
 from config.settings import Settings
 from errors import PermissionMissing
-from inventory.vms import ResourceGraphInventory
+from inventory.graph import ResourceGraphInventory
 from logging_setup import configure_logging
 from metrics.batch import MetricsBatchClient
 from models import RunSummary

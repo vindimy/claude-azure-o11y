@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     mg_id: str
     subscription_ids: str = ""
+    resource_types: str = ""
     law_resource_id: str = ""
     logs_ingestion_endpoint: str = ""
     findings_dcr_immutable_id: str = ""
@@ -28,6 +29,16 @@ class Settings(BaseSettings):
     @property
     def subscription_id_list(self) -> list[str]:
         return [s.strip() for s in self.subscription_ids.split(",") if s.strip()]
+
+    def resource_type_list(self, configured: list[str]) -> list[str]:
+        """RESOURCE_TYPES narrows the configured types (staged rollout); unknown names fail."""
+        wanted = [s.strip() for s in self.resource_types.split(",") if s.strip()]
+        if not wanted:
+            return configured
+        unknown = [w for w in wanted if w not in configured]
+        if unknown:
+            raise ValueError(f"RESOURCE_TYPES names unconfigured types: {unknown}")
+        return [c for c in configured if c in wanted]
 
     @property
     def scope(self) -> Scope:
