@@ -11,7 +11,7 @@ from resource_types.registry import ResourceTypeSpec, parse_tags
 
 KIND = "sqlmi"
 ARM_TYPE = "microsoft.sql/managedinstances"
-READY = "Ready"
+READY = "ready"
 
 QUERY = """
 resources
@@ -49,7 +49,7 @@ def parse(row: dict[str, Any]) -> Resource:
 
 def active(resource: Resource) -> Skip | None:
     state = str(resource.prop("state", ""))
-    if state == READY:
+    if state.lower() == READY:
         return None
     return Skip(resource.id, "not_ready", state or "unknown")
 

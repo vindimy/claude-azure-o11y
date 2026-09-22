@@ -345,6 +345,11 @@ id and counted per type. A chunk failure still skips only its chunk. A type whos
 fails (non-403) is logged, counted (`type_failures`), and the run continues with the other types;
 403 still raises `PermissionMissing("inventory")`.
 
+> Implementation note 2026-09-22: `unsupported_sku` was not built. A resource whose SKU a recommender
+> cannot map still gets a FinOps row, with `RecommendedSku` empty, `Confidence` `low`, and a `Reason`
+> that explains it — the cold finding is real, only the target is unknown. See
+> [docs/agents/recommendations.md](../../agents/recommendations.md#contract).
+
 ## 10. Testing
 
 - Unit: `evaluate/metric.py` (direction, reduce, percentile flip, applies_to, coverage),

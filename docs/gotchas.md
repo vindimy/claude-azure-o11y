@@ -80,8 +80,15 @@ NICs on a uniform-orchestration VM scale set are not ARM resources, so they are 
 `subnet.properties.ipConfigurations` and subnets backing uniform scale sets read low. The exact source
 would be the per-VNET `usages` ARM call, rejected for now to keep inventory to one Resource Graph query
 per type.
+
 ## Cosmos DB throughput metrics have a PT5M minimum grain (2026-09-22)
 
 `ProvisionedThroughput` and `AutoscaleMaxThroughput` on `Microsoft.DocumentDB/databaseAccounts` reject
-`PT1M` and return a bad-request error, which would fail the whole batch call for the account. The cosmos
-type therefore overrides the run windows with `granularity: {ops: PT5M, finops: PT1H}`.
+`PT1M` with a bad-request error that fails the whole batch call for the chunk. Both are input-only
+metrics, so this binds **FinOps runs only**: the cosmos FinOps grain must be PT5M or coarser (it is
+`PT1H`).
+
+The `ops: PT5M` half of `granularity: {ops: PT5M, finops: PT1H}` is a choice, not a requirement — an
+Ops run never requests those two metrics. It keeps both windows on the metrics' native grain:
+`NormalizedRUConsumption` is reported per minute, the throughput inputs are not, and one grain per
+type reads the same in both modes.

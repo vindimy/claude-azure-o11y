@@ -9,6 +9,8 @@ from pydantic import ValidationError
 from config.loader import deep_merge, load_config
 from config.settings import Settings
 from recommend.vm import VmRecommendRules
+from resource_types import TYPES
+from tests.conftest import load_fixture
 
 
 def test_load_default_config(config_dir: Path) -> None:
@@ -63,6 +65,47 @@ def test_unknown_recommend_knob_fails(tmp_path: Path, config_dir: Path) -> None:
     )
     with pytest.raises(ValidationError):
         load_config(tmp_path, "mg-x")
+
+
+def test_one_raw_metric_with_two_aggregations_fails_startup(
+    tmp_path: Path, config_dir: Path
+) -> None:
+    """requests_for() de-duplicates by raw name, so the second key would use the first's series."""
+    _copy_config(config_dir, tmp_path)
+    (tmp_path / "thresholds" / "mg-x.yaml").write_text(
+        "resource_types:\n"
+        "  eventhub:\n"
+        "    metrics:\n"
+        "      ingress_peak:\n"
+        "        metric_name: IncomingBytes\n"
+        "        aggregation: Maximum\n"
+        "        finops_cold: 30\n"
+    )
+    with pytest.raises(ValidationError, match="two aggregations"):
+        load_config(tmp_path, "mg-x")
+
+
+def _parsed_props(kind: str) -> set[str]:
+    name = "resource_graph_vms_page1.json" if kind == "vm" else f"{kind}/resource_graph.json"
+    props: set[str] = set()
+    for row in load_fixture(name)["data"]:
+        props |= set(TYPES[kind].parse(row).props)
+    return props
+
+
+def test_every_configured_prop_exists_in_the_parser_output(config_dir: Path) -> None:
+    """Spec §10: a misspelled prop resolves to "" and silently stops a metric being evaluated."""
+    cfg = load_config(config_dir, "mg-prod")
+    for kind, type_cfg in cfg.thresholds.resource_types.items():
+        props = _parsed_props(kind)
+        assert props, kind
+        for key, metric in type_cfg.metrics.items():
+            for prop in metric.applies_to:
+                assert prop in props, f"{kind}.{key}: applies_to prop {prop!r}"
+            if metric.capacity_prop:
+                assert metric.capacity_prop in props, f"{kind}.{key}: capacity_prop"
+            if TYPES[kind].metric_source == "inventory" and metric.inputs:
+                assert metric.inputs[0] in props, f"{kind}.{key}: inventory input"
 
 
 def test_settings_resource_type_list(monkeypatch: pytest.MonkeyPatch) -> None:

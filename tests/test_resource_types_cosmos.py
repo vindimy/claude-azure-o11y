@@ -130,4 +130,38 @@ async def test_finops_run_recommends_lower_throughput_and_skips_serverless(
     assert fin["RecommendedSku"] == "600 RU/s" and fin["Confidence"] == "low"
     assert "Lower provisioned throughput from 4000 RU/s." in fin["Reason"]
     assert fin["EstimatedMonthlySaving"] is None and fin["OsType"] == ""
+    assert fin["Granularity"] == "PT1H"
     assert rows(tmp_path, OPS_TABLE) == []
+
+
+async def test_finops_granularity_column_follows_the_per_type_override(
+    tmp_path: Path, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The column must report the grain actually fetched, not windows.finops.granularity."""
+    monkeypatch.setitem(
+        FAKE_VALUES,
+        "cosmos-cold",
+        {"NormalizedRUConsumption": 10.0, "ProvisionedThroughput": 4000.0},
+    )
+    settings, clients, metrics = make(tmp_path, config_dir)
+    cfg = load_config(config_dir, "mg-prod")
+    assert cfg.thresholds.windows.finops.granularity == "PT1H"
+    cfg.thresholds.resource_types[KIND].granularity.finops = "P1D"
+    await run(settings, cfg, clients, "finops", now=NOW)
+
+    assert metrics.granularities == [timedelta(days=1)]
+    [fin] = rows(tmp_path, FINOPS_TABLE)
+    assert fin["Granularity"] == "P1D"
+
+
+async def test_serverless_account_costs_no_metrics_call(
+    tmp_path: Path, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """finops_skip runs before the fetch, so skipped accounts are not fetched or evaluated."""
+    monkeypatch.setitem(FAKE_VALUES, "cosmos-cold", {"NormalizedRUConsumption": 10.0})
+    settings, clients, metrics = make(tmp_path, config_dir)
+    summary = await run(settings, load_config(config_dir, "mg-prod"), clients, "finops", now=NOW)
+
+    assert summary.skips["no_capacity_model"] == 1
+    assert summary.inventory_total == 3 and summary.evaluated == 2
+    assert [n for _, _, n, _ in metrics.calls] == [2]

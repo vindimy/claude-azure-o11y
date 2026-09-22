@@ -51,6 +51,24 @@ union O11yOpsFindings_CL, O11yFinOpsFindings_CL
 | order by Last desc
 ```
 
+## Enabling a new resource type in production
+
+Every metric name a type declares travels in one `metrics:getBatch` call, so **one wrong name fails
+every metric of that type for the whole chunk** — the run reports `chunk_failed` for each resource and
+writes no rows. Stage each type in before trusting it:
+
+1. Set `RESOURCE_TYPES=<type>` and run one Ops pass by hand.
+2. In the `run complete` log line, confirm `chunk_failures == 0` and that `no_ops_data` is not the whole
+   type (a handful is normal — metrics that only some SKUs report).
+3. If a chunk failed, diff the configured `metric_name`s against
+   `az monitor metrics list-definitions --resource <id>`; the failing name is in the API message
+   carried in the skip detail.
+4. Add the type back to `RESOURCE_TYPES` (or clear the setting to run them all).
+
+Two of the shipped names are worth verifying live before their type is enabled:
+`ThrottledRequestPercentage` on `Microsoft.DocumentDB/databaseAccounts` (Cosmos DB) and
+`NamespaceCpuUsage` on Premium `Microsoft.EventHub/namespaces`.
+
 ## Changing behaviour without redeploying code
 
 | Change | Where | Then |

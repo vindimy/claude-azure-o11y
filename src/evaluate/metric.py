@@ -156,6 +156,9 @@ def evaluate_cold(
         if isinstance(obs, Skip):
             if key == primary:
                 return None, [obs]
+            # A secondary metric without coverage does not drop the resource, so its Skip is
+            # dropped rather than counted: the finding still stands and the recommender says
+            # "not evaluated" in Reason. Only skips that remove a resource are logged.
             continue
         if not obs.cold:
             return None, []

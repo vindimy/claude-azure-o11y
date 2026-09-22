@@ -131,7 +131,10 @@ resource_types:
       min_vcpu: 2
   cosmos:
     namespace: Microsoft.DocumentDB/databaseAccounts
-    # ProvisionedThroughput/AutoscaleMaxThroughput reject PT1M (see docs/gotchas.md).
+    # FinOps must be PT5M or coarser: ProvisionedThroughput/AutoscaleMaxThroughput reject PT1M.
+    # The Ops override to PT5M is a choice, not a requirement (those two metrics are never
+    # requested on an Ops run): it keeps both windows on the metrics' native grain. See
+    # docs/gotchas.md.
     granularity: {ops: PT5M, finops: PT1H}
     metrics:
       ru:
@@ -147,10 +150,12 @@ resource_types:
         metric_name: ProvisionedThroughput
         unit: Count
         aggregation: Maximum
+        applies_to: {capacity_mode: [provisioned]}
       autoscale_max:
         metric_name: AutoscaleMaxThroughput
         unit: Count
         aggregation: Maximum
+        applies_to: {capacity_mode: [provisioned]}
     recommend:
       min_ru: 400
       headroom: 1.3

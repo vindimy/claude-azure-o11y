@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-from decimal import Decimal
-
 from pydantic import BaseModel, ConfigDict
 
 from config.models import VmSkuCatalog
@@ -69,9 +66,3 @@ def recommend_vm(
         confidence=confidence,
         reason=f"{evidence} Next smaller size in family {current.family}.",
     )
-
-
-def with_pricing(
-    rec: Recommendation, current: Decimal | None, projected: Decimal | None
-) -> Recommendation:
-    return replace(rec, current_monthly=current, projected_monthly=projected)

@@ -34,7 +34,7 @@ from notify.findings import (
     ops_row,
 )
 from ports import InventoryPort, MetricsPort, PricingPort
-from recommend.vm import with_pricing
+from recommend.pricing import with_pricing
 from resource_types import TYPES
 from resource_types.registry import ResourceTypeSpec
 
@@ -116,6 +116,7 @@ def _metric_ctx(
     cfg: MetricThreshold,
     spec: ResourceTypeSpec,
     window: MetricWindow,
+    granularity: str,
 ) -> MetricContext:
     if spec.metric_source == "inventory":
         label = "computed"
@@ -123,7 +124,7 @@ def _metric_ctx(
         label = f"{cfg.aggregation} (derived)"
     else:
         label = cfg.aggregation
-    return MetricContext(type_cfg.namespace, key, cfg, label, window.start, window.end)
+    return MetricContext(type_cfg.namespace, key, cfg, label, window.start, window.end, granularity)
 
 
 async def _fetch_all(
@@ -184,17 +185,29 @@ async def _run_type(
         },
     )
 
-    # 2. Metrics for this mode's window only, batched per (subscription, region)
+    # 2. Metrics for this mode's window only, batched per (subscription, region).
+    # Resources FinOps cannot size are dropped here, before the fetch: they cost no metrics call
+    # and are not counted as evaluated.
+    kept = list(filtered.kept)
+    if mode == "finops":
+        sizeable: list[Resource] = []
+        for r in kept:
+            skip = spec.finops_skip(r)
+            if skip is None:
+                sizeable.append(r)
+            else:
+                _log_skip(skip, summary)
+        kept = sizeable
     if mode == "ops":
+        granularity = type_cfg.granularity.ops or th.windows.ops.granularity
         window = MetricWindow.ops(th.windows.ops, now, type_cfg.granularity.ops)
     else:
+        granularity = type_cfg.granularity.finops or th.windows.finops.granularity
         window = MetricWindow.finops(th.windows.finops, now, type_cfg.granularity.finops)
     requests = requests_for(type_cfg, mode)
     raw: dict[str, Series] = {}
     if spec.metric_source == "monitor" and requests:
-        for res in await _fetch_all(
-            clients, settings, filtered.kept, type_cfg.namespace, requests, window
-        ):
+        for res in await _fetch_all(clients, settings, kept, type_cfg.namespace, requests, window):
             if res.error:
                 ts.chunk_failures += 1
                 summary.chunk_failures += 1
@@ -202,9 +215,9 @@ async def _run_type(
                     _log_skip(Skip(r.id, "chunk_failed", res.error), summary)
                 continue
             raw.update(res.series)
-        evaluable = [r for r in filtered.kept if r.id in raw]
+        evaluable = [r for r in kept if r.id in raw]
     else:
-        evaluable = list(filtered.kept)
+        evaluable = kept
 
     # 3. Evaluate this mode's side and build rows
     rows: list[Row] = []
@@ -222,15 +235,15 @@ async def _run_type(
                     _log_skip(s, summary)
                 if hot is None:
                     continue
-                rows.append(ops_row(hot, run_ctx, _metric_ctx(type_cfg, key, cfg, spec, window)))
+                rows.append(
+                    ops_row(
+                        hot, run_ctx, _metric_ctx(type_cfg, key, cfg, spec, window, granularity)
+                    )
+                )
                 log.warning(
                     "ops finding",
                     extra={"resource_id": r.id, "metric": key, "observed": hot.observed},
                 )
-            continue
-        skip = spec.finops_skip(r)
-        if skip is not None:
-            _log_skip(skip, summary)
             continue
         cold, skips = evaluate_cold(r, series, type_cfg, th, window.granularity)
         for s in skips:
@@ -252,8 +265,7 @@ async def _run_type(
             finops_row(
                 rec,
                 run_ctx,
-                _metric_ctx(type_cfg, cold.metric, cfg, spec, window),
-                th.windows.finops,
+                _metric_ctx(type_cfg, cold.metric, cfg, spec, window, granularity),
             )
         )
     ts.findings = len(rows)

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from config.models import FinopsWindow, OpsWindow
 from metrics.batch import MetricWindow, chunk, parse_batch_response
@@ -56,6 +59,21 @@ def test_parse_falls_back_to_request_order_without_resourceid() -> None:
         del v["resourceid"]
     out = parse_batch_response(payload, ["/a", "/b"], [CPU])
     assert len(out["/a"][CPU.name]) == 3 and len(out["/b"][CPU.name]) == 1
+
+
+def test_multiple_timeseries_are_concatenated_with_a_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dimension-split metrics would duplicate timestamps; make that visible in the logs."""
+    hot = PREFIX + "vm-hot"
+    payload = load_fixture("metrics_batch_cpu.json")
+    metric = payload["values"][0]["value"][0]
+    metric["timeseries"].append({"data": [{"timeStamp": "2026-09-15T11:00:00Z", "average": 1.0}]})
+    with caplog.at_level(logging.WARNING, logger="metrics.batch"):
+        out = parse_batch_response(payload, [hot], [CPU])
+    assert [p.value for p in out[hot][CPU.name]] == [95.0, 97.5, None, 1.0]
+    [record] = [r for r in caplog.records if "more than one timeseries" in r.message]
+    assert record.metric == "Percentage CPU" and record.timeseries == 2
 
 
 def test_ops_window_and_override() -> None:

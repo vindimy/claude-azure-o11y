@@ -30,7 +30,7 @@ column use; `metric_name` is Azure's name.
 | `reduce` | `mean` | How the Ops window collapses to one value: `mean`, `max`, or `sum` (use `sum` with `Total` counts such as `ThrottledRequests`) |
 | `ops_hot` | none | Ops threshold. Absent → not evaluated on Ops runs |
 | `finops_cold` | none | FinOps threshold. Absent → not evaluated on FinOps runs. A metric with neither is fetched on FinOps runs as a **recommender input** only (its latest value lands in `ColdFinding.inputs`) |
-| `applies_to` | `{}` | `{prop: [values]}`: evaluate only when every listed resource prop (set by the type's parser) has one of the values, compared case-insensitively as strings. Non-applicable metrics are neither fetched-for nor counted as skips |
+| `applies_to` | `{}` | `{prop: [values]}`: evaluate only when every listed resource prop (set by the type's parser) has one of the values, compared case-insensitively as strings. A non-applicable metric is still fetched (one batch call covers a mixed chunk, so the request cannot be filtered per resource) but is never evaluated and never counted as a skip |
 | `derive` | none | Named derivation in `metrics/derive.py`: `ratio_percent` (`inputs[0] / inputs[1] × 100`) or `bytes_per_second_percent` (per-interval `Total` bytes ÷ interval seconds ÷ `capacity_prop` bytes/s × 100) |
 | `inputs` | `[]` | Raw metric names a derivation reads. For inventory-sourced types (VNET) the one entry is the **prop** that holds the value |
 | `capacity_prop` | none | Resource prop with the capacity used by `bytes_per_second_percent`; the metric is dropped when the prop is missing (e.g. Event Hubs Dedicated) |

@@ -17,6 +17,7 @@ from models import Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
 from pipeline import Clients, run
+from resource_types.sqlmi import active
 from resource_types.sqlmi import parse as parse_sqlmi
 from tests.conftest import load_fixture
 from tests.test_pipeline import FAKE_VALUES, FakeMetrics, FakePricing, rows
@@ -53,6 +54,16 @@ def make(tmp_path: Path, config_dir: Path) -> tuple[Settings, Clients, FakeMetri
         findings=LocalFindingsSink(tmp_path),
     )
     return settings, clients, metrics
+
+
+def test_active_is_case_insensitive_about_the_state() -> None:
+    """A lower-cased state must not skip every managed instance as not_ready (issue 1)."""
+    row = dict(load_fixture("sqlmi/resource_graph.json")["data"][0], state="ready")
+    assert active(parse_sqlmi(row)) is None
+    stopped = parse_sqlmi(dict(row, state="Stopped"))
+    skip = active(stopped)
+    assert skip is not None and skip.reason == "not_ready" and skip.detail == "Stopped"
+    assert stopped.prop("state") == "Stopped"  # display casing is kept
 
 
 async def test_stopped_instance_is_skipped_not_ready(

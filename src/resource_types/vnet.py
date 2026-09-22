@@ -34,10 +34,12 @@ def usable_ips(prefixes: list[str]) -> int:
     """Azure reserves 5 addresses per IPv4 prefix; IPv6 prefixes are not sized here."""
     total = 0
     for p in prefixes:
-        length = int(p.rsplit("/", 1)[1])
         if ":" in p:  # IPv6 prefixes are not sized; Azure reserves differ
             continue
-        total += max(0, 2 ** (32 - length) - 5)
+        length = p.rpartition("/")[2]
+        if not length.isdigit():  # malformed row: skip the prefix, never fail the whole type
+            continue
+        total += max(0, 2 ** (32 - int(length)) - 5)
     return total
 
 

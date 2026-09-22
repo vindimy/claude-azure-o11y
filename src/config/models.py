@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, RootModel, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, RootModel, field_validator, model_validator
 
 from models import Resource
 
@@ -98,6 +98,26 @@ class ResourceTypeThresholds(_Strict):
 
     def primary_finops_key(self) -> str | None:
         return next(iter(self.finops_metrics()), None)
+
+    @model_validator(mode="after")
+    def _one_aggregation_per_raw_metric(self) -> ResourceTypeThresholds:
+        """One raw metric name per run mode may ask for only one aggregation.
+
+        `metrics.derive.requests_for` de-duplicates the batch call by raw metric name, so a second
+        key naming the same metric with a different aggregation would be silently evaluated
+        against the first key's series. Fail at startup instead.
+        """
+        for mode in (self.ops_metrics(), {**self.finops_metrics(), **self.input_metrics()}):
+            seen: dict[str, tuple[str, str]] = {}
+            for key, m in mode.items():
+                for name in m.inputs if m.derive else [m.metric_name]:
+                    first_key, first_agg = seen.setdefault(name, (key, m.aggregation))
+                    if first_agg != m.aggregation:
+                        raise ValueError(
+                            f"metric {name!r} is requested with two aggregations in one run "
+                            f"mode: {first_key}={first_agg} and {key}={m.aggregation}"
+                        )
+        return self
 
 
 class Thresholds(_Strict):

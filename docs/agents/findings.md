@@ -106,6 +106,11 @@ the run continues with the others), and a `by_type` breakdown. Skip reasons: `ig
 `in_elastic_pool` (SQL DB, FinOps), `no_capacity_model` (Cosmos serverless, Event Hubs Dedicated, FinOps),
 `chunk_failed`, `no_ops_data`, `insufficient_finops_data`.
 
+Counting differs by reason: `no_ops_data` is counted **per (resource, metric)** — one Ops run over three
+VMs with six metrics can report 14 of them — while every other reason is counted **per resource**, once,
+where the resource was dropped. A dashboard that sums `skips` across reasons is therefore not counting
+resources; read `no_ops_data` on its own.
+
 ## Changing the schema
 
 - Add columns only at the end of a table, and never rename or retype one. The table and the DCR stream

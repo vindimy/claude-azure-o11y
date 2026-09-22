@@ -23,7 +23,10 @@ def finding(
 ) -> ColdFinding:
     db = Resource(
         kind="sqldb",
-        id=f"/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Sql/servers/sql/databases/{sku_name}",
+        id=(
+            "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Sql/servers/sql/databases/"
+            f"{sku_name}"
+        ),
         name="db-1",
         type="microsoft.sql/servers/databases",
         subscription_id="s1",
@@ -109,6 +112,15 @@ def test_unknown_capacity_cannot_be_recommended(catalog: SqlSkuCatalog) -> None:
     rec = recommend_sqldb(cold, catalog, SqlDbRecommendRules())
     assert rec.target_sku is None and rec.confidence == "low"
     assert "vCore ladder or capacity unknown; cannot recommend." in rec.reason
+    assert rec.reason.endswith(NOTE)
+
+
+def test_vcore_sku_name_without_a_separator_gets_no_target(catalog: SqlSkuCatalog) -> None:
+    """The rename keeps every `_` part but the last; a bare name would yield "2" (issue 7)."""
+    cold = finding("S3", "GeneralPurpose", "vcore", 8, metric="cpu", observed=10.0)
+    rec = recommend_sqldb(cold, catalog, SqlDbRecommendRules())
+    assert rec.target_sku is None and rec.confidence == "low"
+    assert "SKU name S3 is not in the expected <tier>_<gen>_<vcores> form" in rec.reason
     assert rec.reason.endswith(NOTE)
 
 

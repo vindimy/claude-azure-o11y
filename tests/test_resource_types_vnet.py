@@ -34,6 +34,13 @@ def test_usable_ips_ignores_ipv6_prefixes() -> None:
     assert usable_ips(["10.0.0.0/24", "2001:db8::/64"]) == 251
 
 
+def test_usable_ips_skips_a_malformed_prefix_instead_of_failing_the_type() -> None:
+    """One bad Resource Graph row must not count the whole vnet type as a type_failure."""
+    assert usable_ips(["10.0.0.0", "10.0.1.0/28"]) == 11
+    assert usable_ips(["10.0.0.0/nope", "10.0.1.0/28"]) == 11
+    assert usable_ips([""]) == 0
+
+
 def _fixture_rows() -> list[dict[str, object]]:
     data = load_fixture("vnet/resource_graph.json")["data"]
     assert isinstance(data, list)

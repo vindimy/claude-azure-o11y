@@ -9,7 +9,8 @@ from config.loader import load_config
 from config.models import VmSkuCatalog
 from models import ColdFinding, ColdObservation, Resource
 from recommend.ladder import fit_up, next_smaller
-from recommend.vm import VmRecommendRules, recommend_vm, with_pricing
+from recommend.pricing import with_pricing
+from recommend.vm import VmRecommendRules, recommend_vm
 
 
 def finding(size: str, p95: float = 7.2, memory_p5: float | None = None) -> ColdFinding:

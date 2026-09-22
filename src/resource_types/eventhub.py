@@ -6,15 +6,18 @@ from typing import Any
 
 from config.models import AppConfig
 from models import ColdFinding, Recommendation, Resource, Skip
-from recommend.eventhub import EventHubRecommendRules, recommend_eventhub
+from recommend.eventhub import EventHubRecommendRules, recommend_eventhub, unit_label
 from resource_types.registry import ResourceTypeSpec, parse_tags
 
 KIND = "eventhub"
 ARM_TYPE = "microsoft.eventhub/namespaces"
+DEDICATED = "dedicated"
 
 # Azure publishes 1 MB/s ingress per TU; PU ingress is quoted as 5-10 MB/s and the conservative
-# end is used.
+# end is used. Azure quotes those MB/s decimally, so a MB here is 1_000_000 bytes, not a MiB:
+# using 1024*1024 would understate utilization by ~4.8 % against the FinOps threshold.
 UNIT_MBPS = {"basic": 1, "standard": 1, "premium": 5}
+BYTES_PER_MB = 1_000_000
 
 QUERY = """
 resources
@@ -28,10 +31,12 @@ resources
 
 
 def _sku(tier: str, capacity: int) -> str:
-    if tier == "Dedicated":
-        return "Dedicated"
-    unit = "PU" if tier == "Premium" else "TU"
-    return f"{tier} {capacity} {unit}"
+    """`Sku` column for a namespace, in the tier casing Resource Graph returned."""
+    if not tier:
+        return ""
+    if tier.lower() == DEDICATED:
+        return tier
+    return f"{tier} {capacity} {unit_label(tier)}"
 
 
 def parse(row: dict[str, Any]) -> Resource:
@@ -45,7 +50,7 @@ def parse(row: dict[str, Any]) -> Resource:
     }
     unit_mbps = UNIT_MBPS.get(tier.lower())
     if unit_mbps is not None and capacity > 0:
-        props["capacity_bytes_per_second"] = capacity * unit_mbps * 1024 * 1024
+        props["capacity_bytes_per_second"] = capacity * unit_mbps * BYTES_PER_MB
     return Resource(
         kind=KIND,
         id=str(row["id"]),
@@ -61,7 +66,7 @@ def parse(row: dict[str, Any]) -> Resource:
 
 
 def finops_skip(resource: Resource) -> Skip | None:
-    if str(resource.prop("tier", "")).lower() == "dedicated":
+    if str(resource.prop("tier", "")).lower() == DEDICATED:
         return Skip(resource.id, "no_capacity_model")
     return None
 

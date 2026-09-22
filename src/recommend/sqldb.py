@@ -82,6 +82,18 @@ def recommend_sqldb(
             confidence="medium",
             reason=f"{evidence} {sku_name} is already at min_vcores={rules.min_vcores}.{NOTE}",
         )
+    if "_" not in sku_name:
+        # The rename below keeps every part but the last; without a separator it would produce
+        # the bare vCore count as a SKU name.
+        return Recommendation(
+            finding=finding,
+            target_sku=None,
+            confidence="low",
+            reason=(
+                f"{evidence} SKU name {sku_name} is not in the expected <tier>_<gen>_<vcores> "
+                f"form; cannot name a target.{NOTE}"
+            ),
+        )
     return Recommendation(
         finding=finding,
         target_sku="_".join([*sku_name.split("_")[:-1], str(target)]),

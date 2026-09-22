@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from config.models import AssignmentGroups, FinopsWindow, MetricThreshold, TagNames
+from config.models import AssignmentGroups, MetricThreshold, TagNames
 from models import HotAlert, Recommendation, Resource
 
 OPS_TABLE = "O11yOpsFindings_CL"
@@ -43,6 +43,8 @@ class MetricContext:
     aggregation: str
     window_start: datetime
     window_end: datetime
+    granularity: str
+    """The grain the series was fetched at (ISO 8601), per-type override included."""
 
 
 def iso(dt: datetime) -> str:
@@ -123,12 +125,12 @@ def ops_row(alert: HotAlert, ctx: RunContext, m: MetricContext) -> Row:
     }
 
 
-def finops_row(rec: Recommendation, ctx: RunContext, m: MetricContext, fin: FinopsWindow) -> Row:
+def finops_row(rec: Recommendation, ctx: RunContext, m: MetricContext) -> Row:
     f = rec.finding
     return {
         **_common(f.resource, ctx, m),
         "OsType": str(f.resource.prop("os_type", "")),
-        "Granularity": fin.granularity,
+        "Granularity": m.granularity,
         "Percentile": f.percentile,
         "ObservedValue": f.observed,
         "Threshold": f.threshold,

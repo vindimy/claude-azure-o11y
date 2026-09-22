@@ -16,7 +16,8 @@ from resource_types.registry import ResourceTypeSpec, parse_tags
 KIND = "sqldb"
 ARM_TYPE = "microsoft.sql/servers/databases"
 ONLINE = "online"
-DTU_TIERS = {"Basic", "Standard", "Premium"}
+# Resource Graph returns title case today, but every comparison here is case-insensitive.
+DTU_TIERS = {"basic", "standard", "premium"}
 
 QUERY = """
 resources
@@ -32,7 +33,7 @@ resources
 
 def purchasing_model(tier: str, sku_name: str) -> str:
     """DTU objectives, provisioned vCores, or serverless (`_S_` in the vCore SKU name)."""
-    if tier in DTU_TIERS:
+    if tier.lower() in DTU_TIERS:
         return "dtu"
     if "_S_" in sku_name.upper():
         return "serverless"

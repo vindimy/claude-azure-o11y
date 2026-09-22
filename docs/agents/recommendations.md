@@ -12,6 +12,11 @@ Read this before writing or changing a `src/recommend/<type>.py` module.
   is cold ([thresholds](thresholds.md#metric-fields)); a secondary metric without data lowers confidence.
 - `target_sku` is a free string in the type's own spelling (`Standard_D4s_v5`, `S2`, `GP_Gen5_4`,
   `StandardPool 100`, `GP_Gen5 4 vCores`, `1200 RU/s`, `Standard 2 TU`); empty when there is no safe target.
+- A resource whose SKU a recommender cannot map is **not skipped**: it still gets a FinOps row, with
+  `RecommendedSku` empty, `Confidence` `low`, and a `Reason` that says why (SKU absent from the catalog,
+  a name not in the expected form, an unknown capacity). The cold finding is real and FinOps should see
+  it; only the target is unknown. There is no `unsupported_sku` skip reason — the spec's §9 line listing
+  one is superseded.
 - Every recommendation carries a `confidence` (`high|medium|low`) and a `reason` string. They are
   written verbatim to the `Confidence` and `Reason` columns of `O11yFinOpsFindings_CL`, so FinOps can see
   why each row exists.

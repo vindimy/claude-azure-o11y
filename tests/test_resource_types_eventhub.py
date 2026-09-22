@@ -11,7 +11,7 @@ from models import Resource, Scope
 from notify.findings import FINOPS_TABLE, OPS_TABLE
 from notify.sinks import LocalFindingsSink
 from pipeline import Clients, run
-from resource_types.eventhub import KIND, UNIT_MBPS, finops_skip, parse
+from resource_types.eventhub import BYTES_PER_MB, KIND, UNIT_MBPS, finops_skip, parse
 from tests.conftest import load_fixture
 from tests.test_pipeline import FAKE_VALUES, FakeMetrics, FakePricing, rows
 
@@ -60,14 +60,16 @@ def test_parse_standard_namespace_computes_capacity_bytes_per_second() -> None:
     assert ns.sku == "Standard 4 TU"
     assert ns.prop("tier") == "Standard" and ns.prop("capacity") == 4
     assert ns.prop("auto_inflate") is True and ns.prop("max_tu") == 8
-    assert ns.prop("capacity_bytes_per_second") == 4 * UNIT_MBPS["standard"] * 1024 * 1024
+    # Azure quotes TU ingress as 1 decimal MB/s, so a MB here is 1_000_000 bytes.
+    assert ns.prop("capacity_bytes_per_second") == 4 * UNIT_MBPS["standard"] * 1_000_000
+    assert BYTES_PER_MB == 1_000_000
 
 
 def test_parse_premium_namespace_uses_pu_unit_and_conservative_mbps() -> None:
     row = next(r for r in eventhub_rows() if r["name"] == "eh-premium")
     ns = parse(row)
     assert ns.sku == "Premium 1 PU"
-    assert ns.prop("capacity_bytes_per_second") == 1 * UNIT_MBPS["premium"] * 1024 * 1024
+    assert ns.prop("capacity_bytes_per_second") == 1 * UNIT_MBPS["premium"] * BYTES_PER_MB
     assert UNIT_MBPS["premium"] == 5  # conservative end of the quoted 5-10 MB/s per PU
 
 
@@ -92,7 +94,28 @@ def test_parse_handles_missing_fields() -> None:
         "maxTu": None,
     }
     ns = parse(row)
-    assert ns.tags == {} and ns.sku == " 0 TU" and ns.prop("capacity_bytes_per_second") is None
+    assert ns.tags == {} and ns.sku == "" and ns.prop("capacity_bytes_per_second") is None
+
+
+def test_parse_is_case_insensitive_about_the_tier_and_keeps_its_casing() -> None:
+    """Resource Graph returns title case today; a lower-cased tier must not mislabel the units."""
+    row = {
+        "id": "/x",
+        "name": "n",
+        "subscriptionId": "s",
+        "resourceGroup": "RG",
+        "location": "eastus",
+        "tags": None,
+        "tier": "premium",
+        "capacity": 1,
+        "autoInflate": None,
+        "maxTu": None,
+    }
+    ns = parse(row)
+    assert ns.sku == "premium 1 PU"
+    assert ns.prop("capacity_bytes_per_second") == UNIT_MBPS["premium"] * BYTES_PER_MB
+    assert finops_skip(parse({**row, "tier": "dedicated"})) is not None
+    assert parse({**row, "tier": "dedicated"}).sku == "dedicated"
 
 
 def test_finops_skip_is_dedicated_only() -> None:
@@ -128,14 +151,17 @@ async def test_ops_run_uses_sum_reduction_for_throttled_requests(
 async def test_finops_run_recommends_fewer_units_for_cold_ingress(
     tmp_path: Path, config_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # 20% of a 4 TU (4 MB/s) namespace's capacity, as a PT1H total: 0.2 * 4 MiB/s * 3600s.
-    monkeypatch.setitem(FAKE_VALUES, "eh-standard", {"IncomingBytes": 3_019_898_880.0})
+    # 20% of a 4 TU (4 decimal MB/s) namespace's capacity, as a PT1H total: 0.2 * 4e6 B/s * 3600s.
+    monkeypatch.setitem(FAKE_VALUES, "eh-standard", {"IncomingBytes": 2_880_000_000.0})
     settings, clients, metrics = make(tmp_path, config_dir)
     cfg = load_config(config_dir, "mg-prod")
     summary = await run(settings, cfg, clients, "finops", now=NOW)
 
     assert summary.skips.get("no_capacity_model") == 1  # eh-dedicated
     assert summary.skips.get("insufficient_finops_data") == 1  # eh-premium: no data fed
+    # eh-dedicated is skipped before the fetch: 2 of the 3 namespaces reach the batch call.
+    assert [n for _, _, n, _ in metrics.calls] == [2]
+    assert summary.evaluated == 2
     assert set(summary.destinations) == {FINOPS_TABLE}
     assert rows(tmp_path, OPS_TABLE) == []
 

@@ -102,6 +102,13 @@ def test_purchasing_model_of_every_shape() -> None:
     assert purchasing_model("Hyperscale", "HS_Gen5_4") == "vcore"
 
 
+def test_purchasing_model_is_case_insensitive_about_the_tier() -> None:
+    """A lower-cased tier must not fall through to the vCore branch (issue 1)."""
+    assert purchasing_model("standard", "S3") == "dtu"
+    assert purchasing_model("BASIC", "Basic") == "dtu"
+    assert purchasing_model("generalpurpose", "gp_s_gen5_4") == "serverless"
+
+
 def test_parse_flags_hyperscale() -> None:
     row = dict(graph_rows()[1], tier="Hyperscale", skuName="HS_Gen5_4")
     assert parse(row).prop("hyperscale") is True

@@ -68,7 +68,18 @@ def chunk(ids: list[str], size: int) -> list[list[str]]:
 def _points(metric: dict[str, Any], aggregation: str) -> list[MetricPoint]:
     field = aggregation.lower()
     out: list[MetricPoint] = []
-    for series in metric.get("timeseries", []):
+    timeseries = metric.get("timeseries", [])
+    if len(timeseries) > 1:
+        # No configured metric is dimension-split, so Azure returns one rollup series. If one ever
+        # is, the concatenation below duplicates timestamps and skews mean/percentile/coverage.
+        log.warning(
+            "metric returned more than one timeseries; datapoints are concatenated",
+            extra={
+                "metric": str((metric.get("name") or {}).get("value", "")),
+                "timeseries": len(timeseries),
+            },
+        )
+    for series in timeseries:
         for d in series.get("data", []):
             ts = datetime.fromisoformat(str(d["timeStamp"]).replace("Z", "+00:00"))
             v = d.get(field)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from models import ColdFinding, Resource
-from recommend.eventhub import EventHubRecommendRules, recommend_eventhub
+from recommend.eventhub import EventHubRecommendRules, recommend_eventhub, unit_label
 
 _SUFFIX = (
     " Standard→Basic not evaluated (needs capture/consumer-group/retention checks). "
@@ -11,7 +11,7 @@ _SUFFIX = (
 )
 
 
-def finding(tier: str, capacity: int, observed: float) -> ColdFinding:
+def finding(tier: str, capacity: int, observed: float, percentile: int = 95) -> ColdFinding:
     ns = Resource(
         kind="eventhub",
         id=(
@@ -23,7 +23,7 @@ def finding(tier: str, capacity: int, observed: float) -> ColdFinding:
         subscription_id="s1",
         resource_group="rg",
         location="eastus",
-        sku=f"{tier} {capacity} {'PU' if tier == 'Premium' else 'TU'}",
+        sku=f"{tier} {capacity} {unit_label(tier)}",
         tags={},
         props={"tier": tier, "capacity": capacity},
     )
@@ -31,7 +31,7 @@ def finding(tier: str, capacity: int, observed: float) -> ColdFinding:
         resource=ns,
         metric="ingress",
         observed=observed,
-        percentile=95,
+        percentile=percentile,
         threshold=30,
         lookback_days=14,
         coverage=1.0,
@@ -63,6 +63,23 @@ def test_target_rounds_up_to_whole_units() -> None:
     # 8 * 0.10 * 1.3 = 1.04 -> ceil to 2, not 1.
     rec = recommend_eventhub(finding("Standard", 8, 10.0), EventHubRecommendRules())
     assert rec.target_sku == "Standard 2 TU"
+
+
+def test_reason_interpolates_the_configured_percentile() -> None:
+    rec = recommend_eventhub(finding("Standard", 4, 20.0, percentile=90), EventHubRecommendRules())
+    assert "P90 ingress 20% of 4 TU" in rec.reason
+    assert "P95" not in rec.reason
+
+
+def test_lower_cased_tier_still_gets_pu_units_and_keeps_its_casing() -> None:
+    rec = recommend_eventhub(finding("premium", 4, 20.0), EventHubRecommendRules())
+    assert rec.target_sku == "premium 2 PU"
+    assert "of 4 PU over 14d" in rec.reason
+
+
+def test_unit_label_is_case_insensitive() -> None:
+    assert unit_label("Premium") == "PU" and unit_label("premium") == "PU"
+    assert unit_label("Standard") == "TU" and unit_label("basic") == "TU"
 
 
 def test_rules_reject_unknown_keys() -> None:

@@ -21,14 +21,23 @@ class EventHubRecommendRules(BaseModel):
     headroom: float = 1.3
 
 
+def unit_label(tier: str) -> str:
+    """Capacity unit of a namespace tier: Premium bills processing units, the rest throughput units.
+
+    The single source of the label; `resource_types/eventhub.py` spells `Sku` with it and this
+    module spells `RecommendedSku`. Case-insensitive: Resource Graph's casing is not guaranteed.
+    """
+    return "PU" if tier.lower() == "premium" else "TU"
+
+
 def recommend_eventhub(finding: ColdFinding, rules: EventHubRecommendRules) -> Recommendation:
     resource = finding.resource
     tier = str(resource.prop("tier") or "")
     capacity = int(resource.prop("capacity") or 0)
-    unit = "PU" if tier == "Premium" else "TU"
+    unit = unit_label(tier)
     evidence = (
-        f"P95 ingress {finding.observed:g}% of {capacity} {unit} over {finding.lookback_days}d "
-        f"is below {finding.threshold:g}%."
+        f"P{finding.percentile} ingress {finding.observed:g}% of {capacity} {unit} over "
+        f"{finding.lookback_days}d is below {finding.threshold:g}%."
     )
     target = max(1, ceil(capacity * finding.observed / 100 * rules.headroom))
     if target >= capacity:

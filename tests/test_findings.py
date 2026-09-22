@@ -62,10 +62,16 @@ def ctx(cfg: AppConfig) -> RunContext:
     return RunContext("run-1", "mg-prod", NOW, cfg.thresholds.tags, cfg.assignment_groups, "USD")
 
 
-def mctx(cfg: AppConfig, aggregation: str = "average") -> MetricContext:
+def mctx(cfg: AppConfig, aggregation: str = "average", granularity: str = "PT1H") -> MetricContext:
     vm_cfg = cfg.thresholds.resource_types["vm"]
     return MetricContext(
-        vm_cfg.namespace, "cpu", vm_cfg.metrics["cpu"], aggregation, NOW - timedelta(hours=1), NOW
+        vm_cfg.namespace,
+        "cpu",
+        vm_cfg.metrics["cpu"],
+        aggregation,
+        NOW - timedelta(hours=1),
+        NOW,
+        granularity,
     )
 
 
@@ -78,7 +84,7 @@ def sample_rows(cfg: AppConfig) -> dict[str, dict[str, Any]]:
     )
     return {
         OPS_TABLE: ops_row(hot, ctx(cfg), mctx(cfg)),
-        FINOPS_TABLE: finops_row(rec, ctx(cfg), mctx(cfg), cfg.thresholds.windows.finops),
+        FINOPS_TABLE: finops_row(rec, ctx(cfg), mctx(cfg)),
     }
 
 
@@ -125,9 +131,17 @@ def test_finops_row_values(cfg: AppConfig) -> None:
 
 def test_finops_row_without_pricing_or_target(cfg: AppConfig) -> None:
     rec = Recommendation(ColdFinding(vm(), "cpu", 6.1, 95, 20, 14, 1.0), None, "low", "unknown sku")
-    row = finops_row(rec, ctx(cfg), mctx(cfg), cfg.thresholds.windows.finops)
+    row = finops_row(rec, ctx(cfg), mctx(cfg))
     assert row["RecommendedSku"] == ""
     assert row["CurrentMonthlyCost"] is None and row["EstimatedMonthlySaving"] is None
+
+
+def test_finops_row_granularity_is_the_grain_the_series_was_fetched_at(cfg: AppConfig) -> None:
+    """Not windows.finops.granularity: a type may override the FinOps grain (issue 2)."""
+    rec = Recommendation(ColdFinding(vm(), "cpu", 6.1, 95, 20, 14, 1.0), None, "low", "why")
+    assert cfg.thresholds.windows.finops.granularity == "PT1H"
+    row = finops_row(rec, ctx(cfg), mctx(cfg, granularity="P1D"))
+    assert row["Granularity"] == "P1D"
 
 
 @pytest.mark.parametrize(
