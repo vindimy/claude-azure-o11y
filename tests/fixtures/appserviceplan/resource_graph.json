@@ -1,0 +1,14 @@
+{
+  "totalRecords": 6,
+  "count": 6,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-hot", "name": "asp-hot", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "kind": "linux", "skuName": "P1v3", "tier": "PremiumV3", "capacity": 3, "status": "Ready", "sites": 4, "elastic": false, "reserved": true},
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-cold", "name": "asp-cold", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {"car_id": "101"}, "kind": "app", "skuName": "P1v3", "tier": "PremiumV3", "capacity": 3, "status": "Ready", "sites": 2, "elastic": false, "reserved": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-empty", "name": "asp-empty", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {}, "kind": "app", "skuName": "S1", "tier": "Standard", "capacity": 1, "status": "Ready", "sites": 0, "elastic": false, "reserved": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-free", "name": "asp-free", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {}, "kind": "app", "skuName": "F1", "tier": "Free", "capacity": 1, "status": "Ready", "sites": 1, "elastic": false, "reserved": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-stopped", "name": "asp-stopped", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {}, "kind": "app", "skuName": "B1", "tier": "Basic", "capacity": 1, "status": "Pending", "sites": 1, "elastic": false, "reserved": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-web-prod/providers/Microsoft.Web/serverfarms/asp-elastic", "name": "asp-elastic", "subscriptionId": "s1", "resourceGroup": "rg-web-prod", "location": "eastus", "tags": {}, "kind": "elastic", "skuName": "EP1", "tier": "ElasticPremium", "capacity": 3, "status": "Ready", "sites": 2, "elastic": true, "reserved": false}
+  ]
+}
