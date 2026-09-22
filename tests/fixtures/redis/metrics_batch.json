@@ -1,0 +1,113 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.Cache/redis",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/REDIS-HOT",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/REDIS-HOT/providers/Microsoft.Insights/metrics/percentProcessorTime",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "percentProcessorTime",
+            "localizedValue": "CPU"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 96.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 97.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:02:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/REDIS-HOT/providers/Microsoft.Insights/metrics/usedmemorypercentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "usedmemorypercentage",
+            "localizedValue": "Used Memory Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 40.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 42.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/REDIS-HOT/providers/Microsoft.Insights/metrics/serverLoad",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "serverLoad",
+            "localizedValue": "Server Load"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 55.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 58.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-cache-prod/providers/Microsoft.Cache/Redis/REDIS-HOT/providers/Microsoft.Insights/metrics/errors",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "errors",
+            "localizedValue": "Errors"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "maximum": 0.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "maximum": 3.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
