@@ -1,0 +1,13 @@
+{
+  "totalRecords": 5,
+  "count": 5,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-cold", "name": "agw-cold", "subscriptionId": "s1", "resourceGroup": "rg-network-prod", "location": "eastus", "tags": {}, "skuName": "WAF_v2", "tier": "WAF_v2", "capacity": 3, "autoscale": false, "minCapacity": null, "maxCapacity": null, "state": "Running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-hot", "name": "agw-hot", "subscriptionId": "s1", "resourceGroup": "rg-network-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "skuName": "Standard_v2", "tier": "Standard_v2", "capacity": null, "autoscale": true, "minCapacity": 2, "maxCapacity": 10, "state": "Running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-min0", "name": "agw-min0", "subscriptionId": "s1", "resourceGroup": "rg-network-prod", "location": "eastus", "tags": {}, "skuName": "Standard_v2", "tier": "Standard_v2", "capacity": null, "autoscale": true, "minCapacity": 0, "maxCapacity": 5, "state": "Running"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-stopped", "name": "agw-stopped", "subscriptionId": "s1", "resourceGroup": "rg-network-prod", "location": "eastus", "tags": {}, "skuName": "Standard_v2", "tier": "Standard_v2", "capacity": null, "autoscale": true, "minCapacity": 1, "maxCapacity": 3, "state": "Stopped"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-v1", "name": "agw-v1", "subscriptionId": "s1", "resourceGroup": "rg-network-prod", "location": "eastus", "tags": {}, "skuName": "Standard_Medium", "tier": "Standard", "capacity": 2, "autoscale": false, "minCapacity": null, "maxCapacity": null, "state": "Running"}
+  ]
+}
