@@ -51,3 +51,7 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
+  vnet:
+    namespace: Microsoft.Network/virtualNetworks
+    metrics:
+      subnet_ip: {metric_name: SubnetIpUtilization, inputs: [utilization_percent], ops_hot: 80}

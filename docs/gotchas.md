@@ -73,3 +73,10 @@ silently changing the schedule. Timers use `UTC` explicitly because NCRONTAB on 
 comes from the IAM repo and may live elsewhere, so `module-azure-o11y` reads it with `data.azapi_resource`
 by `uami_resource_id` (like the LAW), and the scripts use `az identity show --ids`. Pinned API version:
 `Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31`.
+
+## Subnet IP utilization from Resource Graph misses VMSS-uniform NICs (2026-09-22)
+
+NICs on a uniform-orchestration VM scale set are not ARM resources, so they are absent from
+`subnet.properties.ipConfigurations` and subnets backing uniform scale sets read low. The exact source
+would be the per-VNET `usages` ARM call, rejected for now to keep inventory to one Resource Graph query
+per type.

@@ -1,0 +1,34 @@
+{
+  "totalRecords": 2,
+  "count": 2,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {
+      "id": "/subscriptions/s1/resourceGroups/rg-net-prod/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/subnet-a",
+      "vnetId": "/subscriptions/s1/resourceGroups/rg-net-prod/providers/Microsoft.Network/virtualNetworks/vnet-app",
+      "name": "vnet-app/subnet-a",
+      "subscriptionId": "s1",
+      "resourceGroup": "rg-net-prod",
+      "location": "eastus",
+      "tags": {"owner": "alice@example.com", "assignment_group": "cloud-engineering", "car_id": "100"},
+      "prefix": "10.0.1.0/27",
+      "prefixes": null,
+      "ipUsed": 26,
+      "delegated": false
+    },
+    {
+      "id": "/subscriptions/s1/resourceGroups/rg-net-prod/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/subnet-b",
+      "vnetId": "/subscriptions/s1/resourceGroups/rg-net-prod/providers/Microsoft.Network/virtualNetworks/vnet-app",
+      "name": "vnet-app/subnet-b",
+      "subscriptionId": "s1",
+      "resourceGroup": "rg-net-prod",
+      "location": "eastus",
+      "tags": {},
+      "prefix": null,
+      "prefixes": ["10.0.2.0/24", "10.0.3.0/25"],
+      "ipUsed": 10,
+      "delegated": true
+    }
+  ]
+}
