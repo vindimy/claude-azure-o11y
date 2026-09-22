@@ -195,3 +195,164 @@ resource_types:
     namespace: Microsoft.Network/virtualNetworks
     metrics:
       subnet_ip: {metric_name: SubnetIpUtilization, inputs: [utilization_percent], ops_hot: 80}
+  appserviceplan:
+    namespace: Microsoft.Web/serverfarms
+    # Plan-level shares across every instance. Consumption/Flex plans are excluded in inventory.
+    metrics:
+      cpu: {metric_name: CpuPercentage, ops_hot: 90, finops_cold: 20}
+      memory: {metric_name: MemoryPercentage, ops_hot: 90, finops_cold: 40}
+      # Requests waiting for a worker: any sustained queue means the plan is saturated.
+      http_queue: {metric_name: HttpQueueLength, unit: Count, ops_hot: 100}
+    recommend:
+      min_instances: 1
+      min_vcpu: 1
+      headroom: 1.3
+  aks:
+    namespace: Microsoft.ContainerService/managedClusters
+    # Cluster-level rollups: the node/nodepool dimensions are not filtered, so each value is the
+    # average across every node. The cluster_autoscaler_* metrics only report when the cluster
+    # autoscaler is on; clusters without it skip them with no data.
+    metrics:
+      node_cpu:
+        metric_name: node_cpu_usage_percentage
+        ops_hot: 90
+        finops_cold: 20
+      node_memory:
+        metric_name: node_memory_working_set_percentage
+        ops_hot: 90
+        finops_cold: 30
+      node_disk:
+        metric_name: node_disk_usage_percentage
+        ops_hot: 90
+      unschedulable_pods:
+        metric_name: cluster_autoscaler_unschedulable_pods_count
+        unit: Count
+        ops_hot: 1
+      # No thresholds: fetched on FinOps runs so the recommender can cite the autoscaler's view.
+      unneeded_nodes:
+        metric_name: cluster_autoscaler_unneeded_nodes_count
+        unit: Count
+    recommend:
+      min_nodes: 1
+      min_vcpu: 2
+      headroom: 1.3
+  redis:
+    namespace: Microsoft.Cache/redis
+    # Basic/Standard/Premium only (Enterprise is another ARM type). Clustered Premium caches report
+    # per-shard series under ShardId; the resource-level rollup Azure returns is used as-is.
+    metrics:
+      cpu: {metric_name: percentProcessorTime, ops_hot: 90, finops_cold: 20}
+      memory: {metric_name: usedmemorypercentage, ops_hot: 90, finops_cold: 30}
+      server_load: {metric_name: serverLoad, ops_hot: 90}
+      # `errors` is split by ErrorType; the unfiltered series is the max over every error type.
+      errors: {metric_name: errors, unit: Count, aggregation: Maximum, reduce: max, ops_hot: 1}
+    recommend: {min_capacity: 0, headroom: 1.3}
+  servicebus:
+    namespace: Microsoft.ServiceBus/namespaces
+    metrics:
+      throttled:
+        metric_name: ThrottledRequests
+        unit: Count
+        aggregation: Total
+        reduce: sum
+        ops_hot: 1
+      server_errors:
+        metric_name: ServerErrors
+        unit: Count
+        aggregation: Total
+        reduce: sum
+        ops_hot: 1
+      # The deepest dead-letter queue in the window (a depth, not a rate): the Maximum over every
+      # entity, reduced by max. A queue that stays above the threshold is hot on every run.
+      deadlettered:
+        metric_name: DeadletteredMessages
+        unit: Count
+        aggregation: Maximum
+        reduce: max
+        ops_hot: 100
+      # Premium only: dedicated capacity per messaging unit. Basic/Standard are multi-tenant with
+      # no CPU or memory metric; they are also skipped from FinOps (no_capacity_model).
+      cpu:
+        metric_name: NamespaceCpuUsage
+        applies_to: {tier: [Premium]}
+        ops_hot: 90
+        finops_cold: 20
+      memory:
+        metric_name: NamespaceMemoryUsage
+        applies_to: {tier: [Premium]}
+        ops_hot: 90
+        finops_cold: 30
+    recommend:
+      headroom: 1.3
+      min_units: 1
+      # The Premium messaging-unit ladder; extend here if Azure adds a size.
+      messaging_units: [1, 2, 4, 8, 16]
+  appgateway:
+    namespace: Microsoft.Network/applicationGateways
+    metrics:
+      unhealthy_hosts:
+        metric_name: UnhealthyHostCount
+        unit: Count
+        ops_hot: 1
+      # ResponseStatus 5xx needs a dimension filter on HttpStatusGroup that would collide with an
+      # unfiltered ResponseStatus in the same mode; FailedRequests is the 5xx proxy.
+      failed_requests:
+        metric_name: FailedRequestPercentage
+        aggregation: Total
+        derive: ratio_percent
+        inputs: [FailedRequests, TotalRequests]
+        ops_hot: 5
+      # v1 only: v2 gateways report capacity units, not CPU.
+      cpu:
+        metric_name: CpuUtilization
+        applies_to:
+          v2: ["false"]
+        ops_hot: 90
+      # Consumed capacity units as a share of the reserved ones (instances × cu_per_instance).
+      capacity:
+        metric_name: CapacityUnitsPercentage
+        unit: Percent
+        derive: percent_of_capacity
+        inputs: [CapacityUnits]
+        capacity_prop: reserved_capacity_units
+        applies_to:
+          v2: ["true"]
+        finops_cold: 30
+    recommend:
+      # Azure reserves 10 capacity units per v2 instance.
+      cu_per_instance: 10
+      min_instances: 1
+      headroom: 1.3
+  storage:
+    namespace: Microsoft.Storage/storageAccounts
+    metrics:
+      availability:
+        # Account-level; low is hot.
+        metric_name: Availability
+        hot_when: below
+        ops_hot: 99.9
+      throttled:
+        # Filtered metric: travels in its own batch call (docs/gotchas.md). ResponseType values
+        # from the Storage metrics reference; extend here if a live check finds more throttling
+        # codes.
+        metric_name: Transactions
+        unit: Count
+        aggregation: Total
+        reduce: sum
+        dimension: {name: ResponseType, values: [ServerBusyError, ClientThrottlingError]}
+        missing_as_zero: true
+        ops_hot: 1
+      transactions:
+        # P95 hourly transactions of a Hot-tier blob account; access density is the tiering signal.
+        metric_name: Transactions
+        unit: Count
+        aggregation: Total
+        missing_as_zero: true
+        finops_cold: 1000
+      used_capacity:
+        # Recommender input, PT1H minimum grain, FinOps only.
+        metric_name: UsedCapacity
+        unit: Bytes
+    recommend:
+      min_gib: 100
+      target_tier: Cool

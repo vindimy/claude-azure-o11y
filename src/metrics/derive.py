@@ -48,6 +48,21 @@ def bytes_per_second_percent(
     ]
 
 
+def percent_of_capacity(points: list[MetricPoint], capacity: float) -> list[MetricPoint]:
+    """Each value as a percentage of a capacity held in a resource prop (App Gateway CU)."""
+    if capacity <= 0:
+        return [MetricPoint(p.timestamp, None) for p in points]
+    return [
+        MetricPoint(p.timestamp, None if p.value is None else round(p.value / capacity * 100, 2))
+        for p in points
+    ]
+
+
+def zero_missing(points: list[MetricPoint]) -> list[MetricPoint]:
+    """A returned interval with no value counted nothing: read it as 0 (count metrics only)."""
+    return [MetricPoint(p.timestamp, 0.0 if p.value is None else p.value) for p in points]
+
+
 def wanted_metrics(type_cfg: ResourceTypeThresholds, mode: RunMode) -> dict[str, MetricThreshold]:
     """The metric keys one run mode evaluates (plus recommender inputs in FinOps)."""
     if mode == "ops":
@@ -60,8 +75,9 @@ def requests_for(type_cfg: ResourceTypeThresholds, mode: RunMode) -> list[Metric
     seen: dict[str, MetricRequest] = {}
     for cfg in wanted_metrics(type_cfg, mode).values():
         names = cfg.inputs if cfg.derive else [cfg.metric_name]
+        roll_up_by = cfg.dimension.name if cfg.dimension else None
         for n in names:
-            seen.setdefault(n, MetricRequest(n, cfg.aggregation))
+            seen.setdefault(n, MetricRequest(n, cfg.aggregation, cfg.filter, roll_up_by))
     return list(seen.values())
 
 
@@ -84,18 +100,25 @@ def resolve_series(
             out[key] = [MetricPoint(now, float(value))] if value is not None else []
             continue
         if cfg.derive is None:
-            out[key] = raw.get(cfg.metric_name, [])
-            continue
-        inputs = [raw.get(name, []) for name in cfg.inputs]
-        if cfg.derive == "ratio_percent":
-            out[key] = ratio_percent(inputs[0], inputs[1])
-        elif cfg.derive == "bytes_per_second_percent":
-            capacity = resource.prop(cfg.capacity_prop or "")
-            if not capacity:
-                continue
-            out[key] = bytes_per_second_percent(
-                inputs[0], granularity.total_seconds(), float(capacity)
-            )
+            points = raw.get(cfg.metric_name, [])
         else:
-            raise ValueError(f"unknown derive {cfg.derive!r} for metric {key}")
+            inputs = [
+                zero_missing(raw.get(name, [])) if cfg.missing_as_zero else raw.get(name, [])
+                for name in cfg.inputs
+            ]
+            if cfg.derive == "ratio_percent":
+                points = ratio_percent(inputs[0], inputs[1])
+            elif cfg.derive in ("bytes_per_second_percent", "percent_of_capacity"):
+                capacity = resource.prop(cfg.capacity_prop or "")
+                if not capacity:
+                    continue
+                if cfg.derive == "percent_of_capacity":
+                    points = percent_of_capacity(inputs[0], float(capacity))
+                else:
+                    points = bytes_per_second_percent(
+                        inputs[0], granularity.total_seconds(), float(capacity)
+                    )
+            else:
+                raise ValueError(f"unknown derive {cfg.derive!r} for metric {key}")
+        out[key] = zero_missing(points) if cfg.missing_as_zero and cfg.derive is None else points
     return out

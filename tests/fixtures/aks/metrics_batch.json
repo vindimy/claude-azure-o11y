@@ -1,0 +1,183 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.ContainerService/managedClusters",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/AKS-COLD",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/AKS-COLD/providers/Microsoft.Insights/metrics/node_cpu_usage_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "node_cpu_usage_percentage",
+            "localizedValue": "CPU Usage Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 18.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 22.0
+                },
+                {
+                  "timeStamp": "2026-09-15T13:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/AKS-COLD/providers/Microsoft.Insights/metrics/node_memory_working_set_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "node_memory_working_set_percentage",
+            "localizedValue": "Memory Working Set Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 20.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 19.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/AKS-COLD/providers/Microsoft.Insights/metrics/cluster_autoscaler_unneeded_nodes_count",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "cluster_autoscaler_unneeded_nodes_count",
+            "localizedValue": "Unneeded Nodes"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 1.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 1.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1H",
+      "namespace": "Microsoft.ContainerService/managedClusters",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot/providers/Microsoft.Insights/metrics/node_cpu_usage_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "node_cpu_usage_percentage",
+            "localizedValue": "CPU Usage Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 95.0
+                },
+                {
+                  "timeStamp": "2026-09-15T12:00:00Z",
+                  "average": 97.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot/providers/Microsoft.Insights/metrics/node_memory_working_set_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "node_memory_working_set_percentage",
+            "localizedValue": "Memory Working Set Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 92.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot/providers/Microsoft.Insights/metrics/node_disk_usage_percentage",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "node_disk_usage_percentage",
+            "localizedValue": "Disk Used Percentage"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 50.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.ContainerService/managedClusters/aks-hot/providers/Microsoft.Insights/metrics/cluster_autoscaler_unschedulable_pods_count",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "cluster_autoscaler_unschedulable_pods_count",
+            "localizedValue": "Unschedulable Pods"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 2.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

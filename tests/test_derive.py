@@ -5,7 +5,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from config.models import MetricThreshold, ResourceTypeThresholds
-from metrics.derive import bytes_per_second_percent, ratio_percent, requests_for, resolve_series
+from metrics.derive import (
+    bytes_per_second_percent,
+    percent_of_capacity,
+    ratio_percent,
+    requests_for,
+    resolve_series,
+)
 from models import MetricPoint, MetricRequest, Resource
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=UTC)
@@ -131,3 +137,91 @@ def test_unknown_derive_fails_loudly() -> None:
     )
     with pytest.raises(ValueError, match="unknown derive"):
         resolve_series(res(), cfg, {}, "ops", M1, NOW)
+
+
+AGW = ResourceTypeThresholds(
+    namespace="Microsoft.Network/applicationGateways",
+    metrics={
+        "capacity": MetricThreshold(
+            metric_name="CapacityUnitsPercentage",
+            derive="percent_of_capacity",
+            inputs=["CapacityUnits"],
+            capacity_prop="reserved_capacity_units",
+            finops_cold=30,
+        )
+    },
+)
+
+
+def test_percent_of_capacity() -> None:
+    out = percent_of_capacity(p([5.0, None, 30.0]), 20.0)
+    assert [pt.value for pt in out] == [25.0, None, 150.0]
+    assert [pt.value for pt in percent_of_capacity(p([1.0]), 0)] == [None]
+
+
+def test_resolve_series_percent_of_capacity_reads_the_prop() -> None:
+    raw = {"CapacityUnits": p([5.0])}
+    out = resolve_series(res(reserved_capacity_units=20), AGW, raw, "finops", M1, NOW)
+    assert [pt.value for pt in out["capacity"]] == [25.0]
+    assert resolve_series(res(), AGW, raw, "finops", M1, NOW) == {}  # no capacity: dropped
+
+
+STORAGE = ResourceTypeThresholds(
+    namespace="Microsoft.Storage/storageAccounts",
+    metrics={
+        "throttled": MetricThreshold(
+            metric_name="Transactions",
+            unit="Count",
+            aggregation="Total",
+            reduce="sum",
+            dimension={
+                "name": "ResponseType",
+                "values": ["ServerBusyError", "ClientThrottlingError"],
+            },
+            missing_as_zero=True,
+            ops_hot=1,
+        ),
+        "transactions": MetricThreshold(
+            metric_name="Transactions",
+            unit="Count",
+            aggregation="Total",
+            missing_as_zero=True,
+            finops_cold=1000,
+        ),
+        "ratio": MetricThreshold(
+            metric_name="r",
+            derive="ratio_percent",
+            inputs=["a", "b"],
+            missing_as_zero=True,
+            finops_cold=1,
+        ),
+    },
+)
+
+
+def test_requests_carry_the_dimension_filter_and_rollup() -> None:
+    assert requests_for(STORAGE, "ops") == [
+        MetricRequest(
+            "Transactions",
+            "Total",
+            "ResponseType eq 'ServerBusyError' or ResponseType eq 'ClientThrottlingError'",
+            "ResponseType",
+        )
+    ]
+    assert requests_for(STORAGE, "finops") == [
+        MetricRequest("Transactions", "Total"),
+        MetricRequest("a", "Average"),
+        MetricRequest("b", "Average"),
+    ]
+
+
+def test_missing_as_zero_fills_returned_points_only() -> None:
+    raw = {"Transactions": p([3.0, None, None]), "a": p([None, 1.0]), "b": p([2.0, None])}
+    out = resolve_series(res(), STORAGE, raw, "ops", M1, NOW)
+    assert [pt.value for pt in out["throttled"]] == [3.0, 0.0, 0.0]
+    out = resolve_series(res(), STORAGE, raw, "finops", M1, NOW)
+    assert [pt.value for pt in out["transactions"]] == [3.0, 0.0, 0.0]
+    # inputs of a derivation are zeroed before it runs: 0/2 = 0 %, 1/0 stays undefined
+    assert [pt.value for pt in out["ratio"]] == [0.0, None]
+    # nothing returned stays nothing: coverage still guards a metric the resource lacks
+    assert resolve_series(res(), STORAGE, {}, "finops", M1, NOW)["transactions"] == []

@@ -1,0 +1,12 @@
+{
+  "totalRecords": 4,
+  "count": 4,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.ServiceBus/namespaces/sb-premium", "name": "sb-premium", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "Premium", "capacity": 4, "partitions": 1, "status": "Active"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.ServiceBus/namespaces/sb-premium-cold", "name": "sb-premium-cold", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {}, "tier": "Premium", "capacity": 4, "partitions": 2, "status": "Active"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.ServiceBus/namespaces/sb-standard", "name": "sb-standard", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {}, "tier": "Standard", "capacity": null, "partitions": null, "status": "Active"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.ServiceBus/namespaces/sb-disabled", "name": "sb-disabled", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {}, "tier": "Basic", "capacity": null, "partitions": null, "status": "Disabled"}
+  ]
+}

@@ -94,6 +94,9 @@ metrics client (see `docs/gotchas.md`).
 - VNET utilization comes from Resource Graph arithmetic only, with no Monitor calls.
 - Minimum grains differ per metric (Cosmos DB throughput metrics: PT5M); a type can override the window
   granularity (`granularity:` in its config block).
+- A dimension-filtered metric (Storage `Transactions` by `ResponseType`) travels in its own call: the API
+  applies one `filter` to the whole call, so `MetricsBatchClient.query` groups requests by filter and
+  merges the series; the pipeline still sees one `query` per chunk.
 
 ## Scale
 
@@ -104,7 +107,7 @@ no code change.
 
 ## Resource types
 
-All seven are implemented (`src/resource_types/`, config key in parentheses). Rules and thresholds:
+All thirteen are implemented (`src/resource_types/`, config key in parentheses). Rules and thresholds:
 [recommendations](recommendations.md), [thresholds](thresholds.md); row spellings: [findings](findings.md).
 
 | # | Type | Ops signal (hot) | FinOps signal (cold) | Metric source |
@@ -116,6 +119,12 @@ All seven are implemented (`src/resource_types/`, config key in parentheses). Ru
 | 5 | Cosmos DB (`cosmos`) | `NormalizedRUConsumption` (max), throttled request % | Low normalized RU → lower provisioned RU/s, or autoscale | Platform (`ProvisionedThroughput` / `AutoscaleMaxThroughput` as recommender inputs; PT5M grain) |
 | 6 | Event Hubs Namespace (`eventhub`) | `ThrottledRequests` (sum), CPU (Premium) | Low ingress bytes/s vs TU/PU capacity → fewer units | Platform (`IncomingBytes` Total vs capacity from `sku.capacity`) |
 | 7 | Virtual Network subnets (`vnet`) | Subnet IP utilization ≥ threshold | none (capacity, not cost) | Resource Graph math: address space minus allocated IPs minus 5 Azure-reserved per subnet |
+| 8 | App Service Plan (`appserviceplan`) | `CpuPercentage`, `MemoryPercentage`, `HttpQueueLength` | Low CPU and memory → fewer instances, else smaller SKU in family; an empty plan → delete | Platform (instance rollup) |
+| 9 | AKS cluster (`aks`) | node CPU %, node working-set memory %, node disk %, unschedulable pods | Low node CPU and memory → fewer nodes / lower autoscaler minimum per pool, else smaller node SKU | Platform, cluster-level rollup (per-pool split is backlog) |
+| 10 | Azure Cache for Redis (`redis`) | `percentProcessorTime`, `usedmemorypercentage`, `serverLoad`, `errors` (max) | Low CPU and memory → next smaller size in the same family | Platform (shard rollup) |
+| 11 | Service Bus namespace (`servicebus`) | `ThrottledRequests`, `ServerErrors` (sum), `DeadletteredMessages` (max depth), Premium CPU/memory | Premium: low CPU and memory → fewer messaging units | Platform |
+| 12 | Application Gateway (`appgateway`) | `UnhealthyHostCount`, failed-request % (derived), v1 `CpuUtilization` | v2: `CapacityUnits` % of reserved (instances × 10 CU) → lower minimum / fixed instance count | Platform (`percent_of_capacity` derivation) |
+| 13 | Storage account (`storage`) | `Availability` (low), throttled `Transactions` (`ResponseType` filter) | Hot-tier blob accounts with few hourly transactions → Cool access tier / lifecycle rule | Platform (dimension filter in its own batch call; `UsedCapacity` as input) |
 
 ## Deployment styles
 

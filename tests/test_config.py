@@ -7,7 +7,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from config.loader import deep_merge, load_config
-from config.models import FamilySkuCatalog, SqlSkuCatalog
+from config.models import FamilySkuCatalog, MetricThreshold, SqlSkuCatalog
 from config.settings import Settings
 from recommend.vm import VmRecommendRules
 from resource_types import TYPES
@@ -170,3 +170,31 @@ def test_settings_scope_management_group(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def _copy_config(src: Path, dst: Path) -> None:
     shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+def test_one_raw_metric_with_two_filters_fails_startup(tmp_path: Path, config_dir: Path) -> None:
+    _copy_config(config_dir, tmp_path)
+    (tmp_path / "thresholds" / "mg-x.yaml").write_text(
+        "resource_types:\n"
+        "  eventhub:\n"
+        "    metrics:\n"
+        "      throttled_by_entity:\n"
+        "        metric_name: ThrottledRequests\n"
+        "        aggregation: Total\n"
+        "        dimension: {name: EntityName, values: [hub-a]}\n"
+        "        ops_hot: 1\n"
+    )
+    with pytest.raises(ValidationError, match="two dimension filters"):
+        load_config(tmp_path, "mg-x")
+
+
+def test_dimension_filter_renders_odata_and_needs_a_value() -> None:
+    m = MetricThreshold.model_validate(
+        {"metric_name": "Transactions", "dimension": {"name": "ResponseType", "values": ["A", "B"]}}
+    )
+    assert m.filter == "ResponseType eq 'A' or ResponseType eq 'B'"
+    assert MetricThreshold(metric_name="x").filter is None
+    with pytest.raises(ValidationError):
+        MetricThreshold.model_validate(
+            {"metric_name": "Transactions", "dimension": {"name": "ResponseType", "values": []}}
+        )

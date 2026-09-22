@@ -1,0 +1,167 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.Network/applicationGateways",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/AGW-HOT",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/AGW-HOT/providers/Microsoft.Insights/metrics/UnhealthyHostCount",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "UnhealthyHostCount",
+            "localizedValue": "Unhealthy Host Count"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 2.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 2.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:02:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/AGW-HOT/providers/Microsoft.Insights/metrics/FailedRequests",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "FailedRequests",
+            "localizedValue": "Failed Requests"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 6.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "total": 0.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/AGW-HOT/providers/Microsoft.Insights/metrics/TotalRequests",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "TotalRequests",
+            "localizedValue": "Total Requests"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "total": 100.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "total": 80.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/AGW-HOT/providers/Microsoft.Insights/metrics/CapacityUnits",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "CapacityUnits",
+            "localizedValue": "Current Capacity Units"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 6.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 4.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z",
+      "endtime": "2026-09-15T12:00:00Z",
+      "interval": "PT1M",
+      "namespace": "Microsoft.Network/applicationGateways",
+      "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-v1",
+      "value": [
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-v1/providers/Microsoft.Insights/metrics/CpuUtilization",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "CpuUtilization",
+            "localizedValue": "CPU Utilization"
+          },
+          "unit": "Percent",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 95.0
+                },
+                {
+                  "timeStamp": "2026-09-15T11:01:00Z",
+                  "average": 97.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "/subscriptions/s1/resourceGroups/rg-network-prod/providers/Microsoft.Network/applicationGateways/agw-v1/providers/Microsoft.Insights/metrics/UnhealthyHostCount",
+          "type": "Microsoft.Insights/metrics",
+          "name": {
+            "value": "UnhealthyHostCount",
+            "localizedValue": "Unhealthy Host Count"
+          },
+          "unit": "Count",
+          "timeseries": [
+            {
+              "metadatavalues": [],
+              "data": [
+                {
+                  "timeStamp": "2026-09-15T11:00:00Z",
+                  "average": 0.0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
