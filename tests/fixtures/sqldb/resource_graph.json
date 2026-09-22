@@ -1,0 +1,12 @@
+{
+  "totalRecords": 4,
+  "count": 4,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/db-cold", "name": "db-cold", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "100"}, "kind": "v12.0,user", "tier": "Standard", "skuName": "S3", "capacity": 100, "status": "Online", "poolId": "", "maxSizeBytes": 268435456000},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/db-hot", "name": "db-hot", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "kind": "v12.0,user,pool", "tier": "GeneralPurpose", "skuName": "GP_Gen5_8", "capacity": 8, "status": "Online", "poolId": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/elasticPools/pool-shared", "maxSizeBytes": 536870912000},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/db-paused", "name": "db-paused", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {}, "kind": "v12.0,user", "tier": "GeneralPurpose", "skuName": "GP_S_Gen5_4", "capacity": 4, "status": "Paused", "poolId": "", "maxSizeBytes": 34359738368},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/master", "name": "master", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {}, "kind": "v12.0,system", "tier": "System", "skuName": "System", "capacity": 0, "status": "Online", "poolId": "", "maxSizeBytes": 32212254720}
+  ]
+}

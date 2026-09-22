@@ -1,0 +1,30 @@
+{
+  "values": [
+    {
+      "starttime": "2026-09-15T11:00:00Z", "endtime": "2026-09-15T12:00:00Z", "interval": "PT1M",
+      "namespace": "Microsoft.Sql/servers/databases", "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/DB-HOT",
+      "value": [
+        {"id": "x", "type": "Microsoft.Insights/metrics", "name": {"value": "cpu_percent", "localizedValue": "CPU percentage"}, "unit": "Percent",
+          "timeseries": [{"metadatavalues": [], "data": [
+            {"timeStamp": "2026-09-15T11:00:00Z", "average": 95.0},
+            {"timeStamp": "2026-09-15T11:01:00Z", "average": 97.5},
+            {"timeStamp": "2026-09-15T11:02:00Z"}
+          ]}]},
+        {"id": "x2", "type": "Microsoft.Insights/metrics", "name": {"value": "workers_percent", "localizedValue": "Workers percentage"}, "unit": "Percent",
+          "timeseries": [{"metadatavalues": [], "data": [
+            {"timeStamp": "2026-09-15T11:00:00Z", "average": 12.0}
+          ]}]}
+      ]
+    },
+    {
+      "starttime": "2026-09-15T11:00:00Z", "endtime": "2026-09-15T12:00:00Z", "interval": "PT1M",
+      "namespace": "Microsoft.Sql/servers/databases", "resourceregion": "eastus",
+      "resourceid": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.Sql/servers/sql-prod/databases/db-cold",
+      "value": [
+        {"id": "y", "type": "Microsoft.Insights/metrics", "name": {"value": "dtu_consumption_percent", "localizedValue": "DTU percentage"}, "unit": "Percent",
+          "timeseries": [{"metadatavalues": [], "data": [{"timeStamp": "2026-09-15T11:00:00Z", "average": 5.0}]}]}
+      ]
+    }
+  ]
+}
