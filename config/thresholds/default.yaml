@@ -51,3 +51,30 @@ resource_types:
         ops_hot: 90
     recommend:
       min_vcpu: 1
+  eventhub:
+    namespace: Microsoft.EventHub/namespaces
+    metrics:
+      throttled:
+        metric_name: ThrottledRequests
+        unit: Count
+        aggregation: Total
+        reduce: sum
+        ops_hot: 1
+      # Premium only: dedicated CPU per PU: Basic/Standard are multi-tenant with no CPU metric.
+      cpu:
+        metric_name: NamespaceCpuUsage
+        applies_to:
+          tier: [Premium]
+        ops_hot: 90
+      ingress:
+        metric_name: IncomingBytes
+        unit: Percent
+        aggregation: Total
+        derive: bytes_per_second_percent
+        inputs: [IncomingBytes]
+        capacity_prop: capacity_bytes_per_second
+        applies_to:
+          tier: [Basic, Standard, Premium]
+        finops_cold: 30
+    recommend:
+      headroom: 1.3

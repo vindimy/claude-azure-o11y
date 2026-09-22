@@ -1,0 +1,11 @@
+{
+  "totalRecords": 3,
+  "count": 3,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-standard", "name": "eh-standard", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "Standard", "capacity": 4, "autoInflate": true, "maxTu": 8},
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-premium", "name": "eh-premium", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {}, "tier": "Premium", "capacity": 1, "autoInflate": false, "maxTu": null},
+    {"id": "/subscriptions/s1/resourceGroups/rg-messaging-prod/providers/Microsoft.EventHub/namespaces/eh-dedicated", "name": "eh-dedicated", "subscriptionId": "s1", "resourceGroup": "rg-messaging-prod", "location": "eastus", "tags": {}, "tier": "Dedicated", "capacity": null, "autoInflate": false, "maxTu": null}
+  ]
+}
