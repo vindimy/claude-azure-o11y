@@ -1,0 +1,11 @@
+{
+  "totalRecords": 3,
+  "count": 3,
+  "resultTruncated": "false",
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/pool-dtu", "name": "pool-dtu", "subscriptionId": "s1", "resourceGroup": "rg-sql-prod", "location": "eastus", "tags": {"car_id": "100", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "tier": "Standard", "skuName": "StandardPool", "capacity": 100, "state": "Ready"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/pool-vcore", "name": "pool-vcore", "subscriptionId": "s1", "resourceGroup": "rg-sql-prod", "location": "eastus", "tags": {"car_id": "100"}, "tier": "GeneralPurpose", "skuName": "GP_Gen5", "capacity": 8, "state": "Ready"},
+    {"id": "/subscriptions/s1/resourceGroups/rg-sql-prod/providers/Microsoft.Sql/servers/sql-srv1/elasticPools/pool-disabled", "name": "pool-disabled", "subscriptionId": "s1", "resourceGroup": "rg-sql-prod", "location": "eastus", "tags": {}, "tier": "Standard", "skuName": "StandardPool", "capacity": 50, "state": "Disabled"}
+  ]
+}
