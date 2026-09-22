@@ -1,0 +1,10 @@
+{
+  "totalRecords": 3,
+  "count": 3,
+  "skipToken": null,
+  "data": [
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-hot", "name": "cosmos-hot", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200", "owner": "alice@example.com", "assignment_group": "cloud-engineering"}, "kind": "GlobalDocumentDB", "serverless": false, "apiKind": "GlobalDocumentDB", "freeTier": false},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-cold", "name": "cosmos-cold", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "MongoDB", "serverless": false, "apiKind": "MongoDB", "freeTier": true},
+    {"id": "/subscriptions/s1/resourceGroups/rg-app-prod/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-serverless", "name": "cosmos-serverless", "subscriptionId": "s1", "resourceGroup": "rg-app-prod", "location": "eastus", "tags": {"car_id": "200"}, "kind": "GlobalDocumentDB", "serverless": true, "apiKind": "GlobalDocumentDB", "freeTier": false}
+  ]
+}

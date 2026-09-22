@@ -73,3 +73,9 @@ silently changing the schedule. Timers use `UTC` explicitly because NCRONTAB on 
 comes from the IAM repo and may live elsewhere, so `module-azure-o11y` reads it with `data.azapi_resource`
 by `uami_resource_id` (like the LAW), and the scripts use `az identity show --ids`. Pinned API version:
 `Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31`.
+
+## Cosmos DB throughput metrics have a PT5M minimum grain (2026-09-22)
+
+`ProvisionedThroughput` and `AutoscaleMaxThroughput` on `Microsoft.DocumentDB/databaseAccounts` reject
+`PT1M` and return a bad-request error, which would fail the whole batch call for the account. The cosmos
+type therefore overrides the run windows with `granularity: {ops: PT5M, finops: PT1H}`.
