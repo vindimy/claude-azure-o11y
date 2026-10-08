@@ -40,7 +40,7 @@ flowchart TB
   sink -->|DRY_RUN=true| files["notify/sinks.py<br/>OUTPUT_DIR/findings/table.jsonl"]
   law --> t1[("O11yOpsFindings_CL")]
   law --> t2[("O11yFinOpsFindings_CL")]
-  t1 & t2 --> down["Downstream, outside this repo:<br/>log alert rules, action groups, workbooks, Datadog"]
+  t1 & t2 --> down["module-o11y-insights (docs/agents/insights.md):<br/>workbooks, log alert rules, action groups, Teams Logic Apps"]
 ```
 
 The order of calls in one run, and where it can stop:
@@ -208,7 +208,8 @@ deploy in every style. The VM path skips `host_storage` and `acr_pull` and has n
 - **History beyond the findings tables.** Runs keep no other state. Storage holds only Functions host
   state. Never add a database or another table; findings history is the
   LAW tables (ADR-0001).
-- **Sending notifications.** Teams, email, and paging are built on the tables downstream.
+- **Sending notifications from the function.** Teams, email, and paging are built on the tables
+  downstream, by `terraform/module-o11y-insights` (ADR-0002).
 - **Auto-remediation.** The system recommends; humans resize.
 - **Azure Advisor and Cost Management integration.**
 

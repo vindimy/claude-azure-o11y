@@ -9,6 +9,7 @@ For design and rationale see [docs/agents/deployment.md](../agents/deployment.md
 | [local-mac.md](local-mac.md) | development, dry runs against a real subscription, ad-hoc live runs | your `az login` user, `python src/run_local.py` |
 | [azure-function.md](azure-function.md) | the production service: custom-container Function App on Elastic Premium (Path A `deploy.sh`, Path B Terraform) | the UAMI, two timer functions |
 | [azure-vm.md](azure-vm.md) | the same pipeline on a RHEL 9 VM when a Function App is not an option (Path C, Ansible) | the UAMI, two systemd timers |
+| [insights.md](insights.md) | Ops/FinOps workbooks, alerts, and Teams channels on the findings tables (any style) | you, `terraform apply`; Logic Apps run as a UAMI |
 
 ## What every style has in common
 

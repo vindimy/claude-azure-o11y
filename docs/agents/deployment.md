@@ -90,6 +90,14 @@ anything, and neither needs a Docker daemon.
 - Resource names live only in `locals.tf`, so the naming and tagging standards (still to come) can be
   swapped in one place.
 
+## Downstream: `terraform/module-o11y-insights`
+
+Workbooks, log search alerts, action groups, and Teams Logic Apps on the findings tables
+([insights](insights.md)). A separate module with its own variables; it reads only the workspace (and
+optionally App Insights and a Key Vault), so it is outside the parameter contract below and works with
+every path, including C. `terraform/examples/insights` is its root; runbook:
+[docs/ops/insights.md](../ops/insights.md).
+
 ## Shared parameter contract
 
 The names and meanings are identical in both paths: snake_case in Terraform, UPPER_SNAKE in the script.
@@ -120,7 +128,8 @@ Path C (`vm.env.example`, `vm-install.sh`, the role's `argument_specs.yml`, and 
 
 ## GitLab CI
 
-`lint` (ruff, mypy, pytest, `terraform fmt -check`, `terraform validate`) → `build` (docker build + push
+`lint` (ruff, mypy, pytest, `terraform fmt -check`, `terraform validate` for `examples/test-rg` and
+`examples/insights`, `terraform test` for `module-o11y-insights` with mock providers) → `build` (docker build + push
 `$CI_COMMIT_SHA`) → `plan` (`-var image_tag=$CI_COMMIT_SHA`, plan-file artifact) → `apply` (manual,
 protected branch only, consumes the plan artifact).
 

@@ -19,7 +19,7 @@ requirements:
     role: Log Analytics Reader
     scope_type: log_analytics_workspace
     scope: "{law_resource_id}"
-    purpose: VM guest metrics (memory, disk) via KQL. Not used by the MVP; requested now to avoid a second IAM round-trip
+    purpose: FinOps Teams digest Logic Apps query the findings tables (terraform/module-o11y-insights). Later also VM guest metrics via KQL; not used by the function today
   - id: findings_ingest
     role: Monitoring Metrics Publisher
     scope_type: data_collection_rule
@@ -34,7 +34,7 @@ requirements:
     role: Key Vault Secrets User
     scope_type: key_vault
     scope: "{key_vault_id}"
-    purpose: Resolve Key Vault references for app-setting secrets. No secret is read today; kept for SMTP/Datadog keys
+    purpose: Teams delivery Logic Apps read the Teams Workflows webhook URLs (terraform/module-o11y-insights). The function reads no secret today; kept for SMTP/Datadog keys
   - id: acr_pull
     role: AcrPull
     scope_type: container_registry

@@ -51,6 +51,10 @@ Both deployment paths take the same parameters and only reference that tag.
   under `releases/`, installed on the VM with the `install.sh` inside
   ([runbook](docs/ops/azure-vm.md#install-from-a-self-contained-package)).
 
+**Dashboards, alerts, Teams:** `terraform/module-o11y-insights` (root `terraform/examples/insights`) adds
+Ops and FinOps workbooks, log search alerts routed by `AssignmentGroup`, and Teams cards through Teams
+Workflows webhooks, for any of the three styles ([runbook](docs/ops/insights.md)).
+
 The runtime identity is an existing user-assigned managed identity. What it must be granted is listed in
 `identity/role-requirements.yaml`; `scripts/check-identity.sh` verifies it. `terraform/examples/iam-uami`
 is a reference definition of that UAMI and its role assignments for the IAM repo.

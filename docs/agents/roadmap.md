@@ -16,6 +16,11 @@ namespaces (`servicebus`), Application Gateway (`appgateway`), Storage accounts 
 three config-driven generalizations to `metrics/` (`dimension` filters, `percent_of_capacity`,
 `missing_as_zero`; see [thresholds](thresholds.md#metric-fields)) and no new permission.
 
+## Done (downstream)
+
+Dashboards, alerts, and Teams delivery on the findings tables: `terraform/module-o11y-insights`
+([insights](insights.md), ADR-0002, spec: `docs/superpowers/specs/2026-10-08-insights-design.md`).
+
 ## Next resource types (suggested order)
 
 Each is platform metrics or Resource Graph only, so it needs no new permission and no agent:
@@ -56,9 +61,6 @@ If the type needs a new permission (everything so far is Reader + Monitoring Rea
 
 ## Backlog: write an ADR in `docs/adr/` before implementing
 
-- **Downstream alerting on the findings tables.** Log search alert rules and action groups (Ops channel,
-  owner / assignment-group email) and a FinOps workbook. Decide whether they live here or with
-  Enterprise Observability.
 - **Datadog.** Forward findings that pass a per-MG "send to Datadog" filter, ideally from the LAW tables
   rather than from the function. The existing Datadog Azure integration already pulls Azure Monitor
   metrics, so agree the boundary with Enterprise Observability before building.

@@ -44,6 +44,8 @@ same pattern.
 
 ## Secrets
 
-No secret is read today; findings ingestion uses the UAMI. Future secrets (e.g. SMTP credentials or a
-Datadog API key) live in the existing Key Vault. The Function App reads them through Key Vault references. Keep them out of app
+The function reads no secret today; findings ingestion uses the UAMI. The Teams Workflows webhook URLs
+are Key Vault secrets read at run time by the `module-o11y-insights` Logic Apps through their UAMI
+(`secrets` row); Terraform holds only the secret names ([insights](insights.md)). Future function secrets
+(e.g. SMTP credentials or a Datadog API key) live in the existing Key Vault. The Function App reads them through Key Vault references. Keep them out of app
 settings as plaintext and out of Terraform state as literals.
