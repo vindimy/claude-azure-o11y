@@ -1,0 +1,14 @@
+// FinOps digest top list (Logic App, one per route). Inputs (let statements prepended by Terraform):
+//   route_groups: dynamic, route_catch_all: bool, claimed_groups: dynamic, top_n: int
+// Returns (Title, Value) rows, already formatted, largest saving first; unpriced rows sort last.
+O11yFinOpsFindings_CL
+| where TimeGenerated > ago(2d)
+| where AssignmentGroup in~ (route_groups) or (route_catch_all and AssignmentGroup !in~ (claimed_groups))
+| summarize arg_max(TimeGenerated, ResourceName, ResourceType, Sku, RecommendedSku, Confidence, EstimatedMonthlySaving, Currency, CarId) by ResourceId
+| extend SortKey = coalesce(EstimatedMonthlySaving, -1.0)
+| top top_n by SortKey desc
+| extend Money = iff(isnull(EstimatedMonthlySaving), "unpriced", strcat(Currency, " ", tostring(round(EstimatedMonthlySaving, 0)), "/mo"))
+| project
+    Title = strcat(ResourceName, " (", tostring(split(ResourceType, "/")[-1]), ")"),
+    Value = strcat(Money, " · ", Sku, " → ", iff(isempty(RecommendedSku), "review", RecommendedSku), " · ", Confidence,
+        iff(isempty(CarId), "", strcat(" · ", CarId)))

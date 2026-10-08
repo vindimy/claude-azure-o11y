@@ -1,0 +1,23 @@
+// Ops alert, one rule per route. Inputs (let statements prepended by Terraform):
+//   route_groups: dynamic, route_catch_all: bool, claimed_groups: dynamic,
+//   cadence: timespan, sustained_runs: int, fresh_after: timespan
+// One row per (resource, metric) hot in at least sustained_runs consecutive Ops runs, the newest of
+// which is the latest run. A gap over 1.5 runs (a run where the pair was not hot) ends a streak. Each
+// row is a dimension combination, so it fires and resolves on its own.
+let hot = O11yOpsFindings_CL
+    | where AssignmentGroup in~ (route_groups) or (route_catch_all and AssignmentGroup !in~ (claimed_groups));
+let streaks = hot
+    | summarize RunTime = max(TimeGenerated) by ResourceId, MetricKey, RunId
+    | sort by ResourceId asc, MetricKey asc, RunTime desc
+    | extend Key = strcat(ResourceId, "|", MetricKey)
+    | extend Break = iff(Key == prev(Key) and prev(RunTime) - RunTime > 1.5 * cadence, 1, 0)
+    | extend Streak = row_cumsum(Break, Key != prev(Key))
+    | where Streak == 0
+    | summarize Runs = count() by ResourceId, MetricKey;
+hot
+| summarize arg_max(TimeGenerated, ResourceName, MetricName, ObservedValue, Threshold, Unit, AssignmentGroup, Owner)
+    by ResourceId, MetricKey
+| join kind=inner streaks on ResourceId, MetricKey
+| where TimeGenerated > ago(fresh_after) and Runs >= sustained_runs
+| extend Detail = strcat(MetricName, " (threshold ", Threshold, " ", Unit, ")")
+| project ResourceId, ResourceName, MetricKey, Detail, AssignmentGroup, Owner, ObservedValue

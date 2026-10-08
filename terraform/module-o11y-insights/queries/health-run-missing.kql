@@ -1,0 +1,16 @@
+// Pipeline health, App Insights scope. Inputs (let statements prepended by Terraform):
+//   ops_max_age: timespan, finops_max_age: timespan
+// One row per run mode whose last "run complete" log is older than its maximum age (or absent).
+// The log has two shapes: JSON in message (Functions host) or the bare message with the fields in
+// customDimensions (OpenTelemetry export on the RHEL VM).
+let expected = datatable(Mode: string)["ops", "finops"];
+let runs = traces
+    | where message has "run complete"
+    | extend j = iff(message startswith "{", parse_json(message), customDimensions)
+    | where message == "run complete" or tostring(j.msg) == "run complete"
+    | summarize LastRun = max(timestamp) by Mode = tostring(j.mode);
+expected
+| join kind=leftouter runs on Mode
+| extend MaxAge = iff(Mode == "ops", ops_max_age, finops_max_age)
+| where isnull(LastRun) or LastRun < ago(MaxAge)
+| project Mode, MinutesSinceLastRun = iff(isnull(LastRun), 2880, datetime_diff("minute", now(), LastRun))

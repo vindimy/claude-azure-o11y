@@ -1,0 +1,55 @@
+{
+  "schemaId": "azureMonitorCommonAlertSchema",
+  "data": {
+    "essentials": {
+      "alertId": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.AlertsManagement/alerts/00000000-0000-0000-0000-000000000001",
+      "alertRule": "o11y-ops-hot-platform",
+      "severity": "Sev2",
+      "signalType": "Log",
+      "monitorCondition": "Fired",
+      "monitoringService": "Log Alerts V2",
+      "alertTargetIDs": [
+        "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-monitoring/providers/microsoft.operationalinsights/workspaces/law-central"
+      ],
+      "originAlertId": "00000000-0000-0000-0000-000000000002",
+      "firedDateTime": "2026-10-08T17:30:12.000Z",
+      "description": "SAMPLE: a resource stayed at or above its hot threshold for 2 Ops runs (route platform).",
+      "essentialsVersion": "1.0",
+      "alertContextVersion": "1.0"
+    },
+    "alertContext": {
+      "properties": {},
+      "conditionType": "LogQueryCriteria",
+      "condition": {
+        "windowSize": "PT45M",
+        "allOf": [
+          {
+            "searchQuery": "O11yOpsFindings_CL | ...",
+            "metricMeasureColumn": "ObservedValue",
+            "targetResourceTypes": "['Microsoft.OperationalInsights/workspaces']",
+            "operator": "GreaterThanOrEqual",
+            "threshold": "0",
+            "timeAggregation": "Maximum",
+            "dimensions": [
+              {"name": "ResourceId", "value": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01"},
+              {"name": "ResourceName", "value": "vm-app-01"},
+              {"name": "MetricKey", "value": "cpu"},
+              {"name": "Detail", "value": "Percentage CPU (threshold 90 Percent)"},
+              {"name": "AssignmentGroup", "value": "cloud-platform"},
+              {"name": "Owner", "value": "jane.doe@example.com"}
+            ],
+            "metricValue": 97.4,
+            "failingPeriods": {"numberOfEvaluationPeriods": 1, "minFailingPeriodsToAlert": 1},
+            "linkToSearchResultsUI": "https://portal.azure.com",
+            "linkToFilteredSearchResultsUI": "https://portal.azure.com"
+          }
+        ],
+        "windowStartTime": "2026-10-08T16:45:00.000Z",
+        "windowEndTime": "2026-10-08T17:30:00.000Z"
+      }
+    },
+    "customProperties": {
+      "WorkbookUrl": "https://portal.azure.com"
+    }
+  }
+}
