@@ -6,3 +6,6 @@ to each package verifies a download (`sha256sum -c`); the `RELEASE` file inside 
 source commit, and build time. A version is built once and never rebuilt in place: bump the version.
 
 How to use them: [docs/ops/azure-vm.md](../docs/ops/azure-vm.md#install-from-a-self-contained-package).
+
+Versions in this directory: v1, v2, v3, v6. There is no v4 or v5 package; the numbering skips from v3 to
+v6.
