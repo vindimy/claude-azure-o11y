@@ -17,3 +17,16 @@ Install the VM package (or any deployment style) first, because the alerts need 
 | v1, v2, v3 | yes | — | before the insights module |
 | v4, v5 | — | — | skipped; never built |
 | v6 | yes | yes | first release with dashboards, alerts, and Teams delivery |
+
+Each release is also published at <https://github.com/vindimy/claude-azure-o11y/releases> under the
+tag `vN`, which points at the `main` commit that adds the packages. The packages and their `.sha256`
+files are attached as assets. After the packages are committed and pushed:
+
+```bash
+git tag -a vN <commit> -m "Release vN: o11y-alerting-vm-vN (<sha>) + o11y-insights-vN (<sha>)"
+git push origin vN
+gh release create vN --verify-tag --latest --title "vN: <summary>" --notes-file notes.md \
+  releases/o11y-alerting-vm-vN.tar.gz{,.sha256} releases/o11y-insights-vN.tar.gz{,.sha256}
+```
+
+v1–v3 exist only as files in this directory and have no GitHub release.
