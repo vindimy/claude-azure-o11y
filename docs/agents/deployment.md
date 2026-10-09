@@ -96,7 +96,9 @@ Workbooks, log search alerts, action groups, and Teams Logic Apps on the finding
 ([insights](insights.md)). A separate module with its own variables; it reads only the workspace (and
 optionally App Insights and a Key Vault), so it is outside the parameter contract below and works with
 every path, including C. `terraform/examples/insights` is its root; runbook:
-[docs/ops/insights.md](../ops/insights.md).
+[docs/ops/insights.md](../ops/insights.md). A release's Azure half is `releases/o11y-insights-vN.tar.gz`
+(`make insights-package VERSION=N`), built with the same N as the VM package; its `install.sh` wraps
+`terraform init/plan/apply` and keeps the state in `--state-dir`, outside the package.
 
 ## Shared parameter contract
 

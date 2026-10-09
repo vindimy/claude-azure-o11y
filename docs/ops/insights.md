@@ -50,6 +50,32 @@ no apply.
 
 ## 3. Configure and apply
 
+Pick one of the three ways to run it. All of them apply the same root, `terraform/examples/insights`.
+
+### From a package (no repository needed)
+
+The release's Azure package, `releases/o11y-insights-v<N>.tar.gz`, holds the module, the root, this
+runbook, and `install.sh`. The installer keeps the Terraform state and your `terraform.tfvars` in a
+directory **outside** the versioned package directory, so the next package updates the same resources:
+
+```bash
+sha256sum -c o11y-insights-v6.tar.gz.sha256
+tar xzf o11y-insights-v6.tar.gz && cd o11y-insights-v6
+./install.sh --state-dir ~/o11y-insights            # first run: writes ~/o11y-insights/terraform.tfvars and stops
+$EDITOR ~/o11y-insights/terraform.tfvars
+./install.sh --state-dir ~/o11y-insights            # init, plan, confirm, apply, then print the outputs
+./install.sh --state-dir ~/o11y-insights --plan-only
+./install.sh --state-dir ~/o11y-insights --destroy  # removes the module's resources; findings tables stay
+```
+
+To update, extract a newer package and run its `install.sh` with the **same** `--state-dir`. To roll
+back, run an older package's `install.sh` the same way. `--yes` skips the confirmation, and anything
+after `--` goes to `terraform plan`. Keep `--state-dir` backed up, or switch the root's `versions.tf` to
+an `azurerm` backend when several people apply. Build a package with `make insights-package VERSION=<n>`
+([releases](../../releases/README.md)).
+
+### From the repository
+
 ```bash
 cd terraform/examples/insights
 cp terraform.tfvars.example terraform.tfvars     # git-ignored
@@ -60,6 +86,13 @@ terraform apply tfplan
 terraform output workbook_urls
 terraform output teams_secret_names             # every one must exist in the vault
 ```
+
+### From CI
+
+Add a root like `terraform/examples/insights` with a remote backend and plan/apply it the same way as the
+function's root. The `lint:terraform` job already validates and tests this module.
+
+### Settings
 
 What to set in `terraform.tfvars`:
 
@@ -79,23 +112,20 @@ What to set in `terraform.tfvars`:
 [findings](../agents/findings.md#ownership-tags)). The Ops workbook's **Routing gaps** grid and the
 FinOps workbook's **Missing ownership tags** grid list what falls to the catch-all route.
 
-In CI, add a root like `terraform/examples/insights` with a remote backend and plan/apply it the same way
-as the function's root. The `lint:terraform` job already validates and tests this module.
-
 ## 4. Verify
 
 **Workbooks:** open each link from `terraform output workbook_urls`. The Ops workbook shows *Hot now*
 from the latest run. The FinOps workbook needs one daily run within the last 2 days.
 
 **A Teams channel end to end**, without waiting for an alert. This posts the sample Ops card through
-the same Logic App the action groups call:
+the same Logic App the action groups call. Run it from the repository root or the package directory:
 
 ```bash
 RG=rg-o11y-test; SECRET=teams-cloud-ops
 ID=$(az resource show -g $RG -n logic-o11y-teams-$SECRET --resource-type Microsoft.Logic/workflows --query id -o tsv)
 URL=$(az rest --method post --url "https://management.azure.com$ID/triggers/manual/listCallbackUrl?api-version=2019-05-01" --query value -o tsv)
 curl -sS -X POST -H 'Content-Type: application/json' \
-  -d @../../module-o11y-insights/samples/common-alert-ops.json "$URL" -w '%{http_code}\n'   # 202
+  -d @terraform/module-o11y-insights/samples/common-alert-ops.json "$URL" -w '%{http_code}\n'   # 202
 ```
 
 **The FinOps digest now** (it otherwise waits for its schedule):

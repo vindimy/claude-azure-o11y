@@ -22,6 +22,7 @@ and Storage accounts. Owner: Dmitriy (Cloud Engineering).
 - `scripts/run-once.sh --mg-id <mg> --subscription-ids <id> [--mode ops|finops|all]`: local dry run; findings land in `./out/findings/*.jsonl`. `--param-file deploy.env --live` writes to the workspace instead
 - `scripts/build-image.sh --param-file deploy.env [--deploy]` (or `make image`): manual image build + ACR push
 - `scripts/vm-install.sh --param-file vm.env [--release-ref <sha>]` (or `make vm-install`): install/update on a RHEL 9 VM via Ansible
+- `make vm-package VERSION=<n>` + `make insights-package VERSION=<n>`: the two packages of release `<n>` under `releases/` (RHEL VM runner; Azure workbooks/alerts/Teams)
 
 ## Hard rules
 

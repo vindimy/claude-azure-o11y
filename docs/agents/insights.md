@@ -21,7 +21,12 @@ A Terraform module, separate from `module-azure-o11y`, that reads the two findin
 | `logic-o11y-finops-digest-<route>` | Logic App (azapi) | weekly (default) digest card from two workspace queries |
 
 It needs only the workspace, so it works with every deployment style; it never references the function
-module. `terraform/examples/insights` is the root CI validates.
+module. `terraform/examples/insights` is the root CI validates. A release ships it as its own package,
+`releases/o11y-insights-vN.tar.gz` (`scripts/build-insights-package.sh`, `packaging/insights/`), next to
+the RHEL VM package of the same version. Its `install.sh` keeps the Terraform state outside the versioned
+directory. The module must keep reading only files under its own directory (`path.module`), or the
+package stops being self-contained; `tests/test_insights_package.py` checks the packed files match the
+repo.
 
 ## Layout and rules
 
