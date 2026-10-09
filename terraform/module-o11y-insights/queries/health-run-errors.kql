@@ -1,0 +1,17 @@
+// Pipeline health, App Insights scope. No inputs.
+// Counts the pipeline's own failure signals, so a shared App Insights component does not page for other
+// apps: run complete with failures, and the error lines logged by src/pipeline.py and src/bootstrap.py.
+traces
+| where message has "run complete" or message has "chunk failed" or message has "type failed"
+    or message has "write failed" or message contains "(need: "
+| extend j = iff(message startswith "{", parse_json(message), customDimensions)
+| extend Msg = iff(message startswith "{", tostring(j.msg), message)
+| extend Problem = case(
+    Msg == "run complete" and toint(j.write_failures) > 0, "findings write failed",
+    Msg == "run complete" and toint(j.type_failures) > 0, "resource type failed",
+    Msg == "run complete" and toint(j.chunk_failures) > 0, "metrics chunk failed",
+    Msg in ("metrics chunk failed", "resource type failed", "findings write failed"), Msg,
+    Msg startswith "missing " and Msg contains "(need: ", "permission missing",
+    "")
+| where isnotempty(Problem)
+| summarize Occurrences = count() by Problem

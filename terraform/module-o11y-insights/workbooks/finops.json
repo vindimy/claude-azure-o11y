@@ -1,0 +1,445 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## O11y FinOps recommendations\nResources whose percentile utilization over the FinOps lookback is below a **cold** threshold, from `O11yFinOpsFindings_CL`, with the recommended SKU and the estimated saving at retail pay-as-you-go prices. Current state is the latest daily run per resource (last 2 days); the time range drives the trend and the dropped-off list. Unpriced rows have no cost columns yet (see the pricing backlog)."
+      },
+      "name": "text - header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "parameters": [
+          {
+            "id": "bb1d4ace-339f-560b-8076-db888c11c7fa",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time range",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 2592000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "55190c45-d7dd-57d0-9d0e-040f74926f5c",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscription",
+            "label": "Subscription",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = SubscriptionId\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "2280dec1-62d3-51bd-b237-496b7f3dcab9",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceType",
+            "label": "Resource type",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = ResourceType\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "712cc743-b7de-5553-bf55-2d6c53d6f490",
+            "version": "KqlParameterItem/1.0",
+            "name": "AssignmentGroup",
+            "label": "Assignment group",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup)\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "1b77bb34-830c-5870-a55e-393211a7c784",
+            "version": "KqlParameterItem/1.0",
+            "name": "CarId",
+            "label": "Application (CarId)",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = iff(isempty(CarId), \"(none)\", CarId)\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "9c5c7261-edf8-588d-b440-ed096505e5bd",
+            "version": "KqlParameterItem/1.0",
+            "name": "Confidence",
+            "label": "Confidence",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = Confidence\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let latest = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(2d)\n    | summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence});\nlatest\n| summarize Saving = round(sum(EstimatedMonthlySaving), 0), Resources = count(),\n    Unpriced = countif(isnull(EstimatedMonthlySaving)), MissingOwnership = countif(array_length(MissingTags) > 0),\n    Currency = take_any(Currency)\n| project Facts = pack_array(\n    pack(\"Title\", strcat(\"Est. monthly saving \", Currency), \"Value\", coalesce(Saving, 0.0)),\n    pack(\"Title\", \"Resources with a recommendation\", \"Value\", Resources),\n    pack(\"Title\", \"Unpriced recommendations\", \"Value\", Unpriced),\n    pack(\"Title\", \"Missing ownership tags\", \"Value\", MissingOwnership))\n| mv-expand Facts\n| project Title = tostring(Facts.Title), Value = todouble(Facts.Value)",
+        "size": 0,
+        "title": "Current recommendations",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "tiles",
+        "timeContext": {
+          "durationMs": 172800000
+        },
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Title",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 4,
+                "maximumFractionDigits": 0
+              }
+            }
+          },
+          "showBorder": false
+        }
+      },
+      "name": "query - totals"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let latest = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(2d)\n    | summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence});\nlatest\n| summarize Saving = round(sum(EstimatedMonthlySaving), 0) by Type = tostring(split(ResourceType, \"/\")[-1])\n| order by Saving desc",
+        "size": 0,
+        "title": "Estimated monthly saving by resource type",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "barchart",
+        "timeContext": {
+          "durationMs": 172800000
+        }
+      },
+      "name": "query - by type"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let latest = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(2d)\n    | summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence});\nlatest\n| summarize Resources = count(), Saving = round(sum(EstimatedMonthlySaving), 0),\n    Unpriced = countif(isnull(EstimatedMonthlySaving)), Owners = strcat_array(make_set(Owner, 10), \", \")\n    by App = iff(isempty(CarId), \"(none)\", CarId), Team = iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup)\n| order by Saving desc",
+        "size": 0,
+        "title": "By application and team",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContext": {
+          "durationMs": 172800000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Saving",
+              "formatter": 4,
+              "formatOptions": {
+                "palette": "green"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "style": "decimal",
+                  "maximumFractionDigits": 0
+                }
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "name": "query - by app"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let latest = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(2d)\n    | summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence});\nlet first_seen = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(30d)\n    | summarize FirstSeen = min(TimeGenerated) by ResourceId;\nlatest\n| join kind=leftouter first_seen on ResourceId\n| extend SortKey = coalesce(EstimatedMonthlySaving, -1.0)\n| order by SortKey desc\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), Sku, RecommendedSku, Confidence, Saving = EstimatedMonthlySaving,\n    Current = CurrentMonthlyCost, Projected = ProjectedMonthlyCost, Currency, Metric = MetricName,\n    ObservedValue = round(ObservedValue, 2), Threshold, Unit, Percentile, DataCoverage = round(DataCoverage, 2),\n    App = CarId, Team = AssignmentGroup, Owner, FirstSeen, Reason",
+        "size": 0,
+        "title": "Recommendations, largest saving first",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            },
+            {
+              "columnMatch": "Saving",
+              "formatter": 4,
+              "formatOptions": {
+                "palette": "green"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "style": "decimal",
+                  "maximumFractionDigits": 0
+                }
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - recommendations"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence})\n| summarize arg_max(TimeGenerated, EstimatedMonthlySaving) by ResourceId, Day = bin(TimeGenerated, 1d)\n| summarize IdentifiedSaving = round(sum(EstimatedMonthlySaving), 0), Resources = count() by Day\n| order by Day asc",
+        "size": 0,
+        "title": "Identified monthly saving per day (latest row per resource per day)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "timechart",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        }
+      },
+      "name": "query - trend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yFinOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence})\n| where TimeGenerated < ago(2d)\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), LastRecommended = TimeGenerated, Sku, RecommendedSku,\n    LastSaving = EstimatedMonthlySaving, Currency, App = CarId, Team = AssignmentGroup, Owner\n| order by LastSaving desc",
+        "size": 0,
+        "title": "No longer recommended: resized, deleted, busier, excluded, or short of data (in the time range, not in the last 2 days)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - dropped off"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let latest = O11yFinOpsFindings_CL\n    | where TimeGenerated > ago(2d)\n    | summarize arg_max(TimeGenerated, *) by ResourceId\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | where \"*\" in ({CarId}) or iff(isempty(CarId), \"(none)\", CarId) in ({CarId})\n    | where \"*\" in ({Confidence}) or Confidence in ({Confidence});\nlatest\n| where array_length(MissingTags) > 0\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), MissingTags = strcat_array(MissingTags, \", \"), Owner, AssignmentGroup, CarId,\n    Saving = EstimatedMonthlySaving, Currency\n| order by Saving desc",
+        "size": 0,
+        "title": "Missing ownership tags (cannot be routed to a team)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContext": {
+          "durationMs": 172800000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - tag hygiene"
+    }
+  ],
+  "fallbackResourceIds": [
+    "__LAW_RESOURCE_ID__"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

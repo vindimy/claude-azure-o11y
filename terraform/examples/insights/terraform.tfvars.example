@@ -1,0 +1,35 @@
+# Copy to terraform.tfvars (git-ignored). Runbook: docs/ops/insights.md
+resource_group_name = "rg-o11y-test"
+location            = "centralus"
+law_resource_id     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-monitoring/providers/Microsoft.OperationalInsights/workspaces/law-central"
+app_insights_id     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.Insights/components/appi-o11y-alerting"
+key_vault_id        = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.KeyVault/vaults/kv-o11y-alerting"
+uami_resource_id    = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-o11y-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-o11y-alerting"
+
+# AssignmentGroup values (the assignment_group tag) -> channels. Exactly one catch_all route.
+# teams_secret_name = Key Vault secret holding the channel's Teams Workflows webhook URL.
+routes = {
+  platform = {
+    assignment_groups = ["cloud-platform"]
+    catch_all         = true
+    ops               = { teams_secret_name = "teams-cloud-ops", emails = ["cloud-oncall@example.com"], severity = 2 }
+    finops            = { teams_secret_name = "teams-cloud-finops", emails = [] }
+  }
+  data = {
+    assignment_groups = ["data-platform", "dba"]
+    ops               = { teams_secret_name = "teams-data-ops", severity = 2 }
+    finops            = { teams_secret_name = "teams-cloud-finops", new_saving_alert = false }
+  }
+}
+
+health = { teams_secret_name = "teams-cloud-ops", emails = ["cloud-engineering@example.com"] }
+
+ops_cadence_minutes        = 15
+ops_sustained_runs         = 2
+finops_new_saving_min      = 100
+finops_max_age_hours       = 26
+finops_stale_alert_enabled = true
+finops_digest_schedule     = { frequency = "Week", week_days = ["Monday"], hour = 14 }
+finops_digest_top_n        = 10
+alerts_enabled             = true
+runbook_url                = ""

@@ -1,0 +1,14 @@
+// FinOps alert, one daily rule per route. Inputs (let statements prepended by Terraform):
+//   route_groups: dynamic, route_catch_all: bool, claimed_groups: dynamic, min_saving: real
+// "New" = in the last day's FinOps run but not in the run before it (the v2 window maximum is 2 days).
+let routed = O11yFinOpsFindings_CL
+    | where AssignmentGroup in~ (route_groups) or (route_catch_all and AssignmentGroup !in~ (claimed_groups));
+let previous = routed
+    | where TimeGenerated between (ago(2d) .. ago(1d))
+    | distinct ResourceId;
+routed
+| where TimeGenerated > ago(1d)
+| summarize arg_max(TimeGenerated, EstimatedMonthlySaving, Currency) by ResourceId
+| join kind=leftanti previous on ResourceId
+| where EstimatedMonthlySaving >= min_saving
+| summarize NewResources = count(), NewMonthlySaving = round(sum(EstimatedMonthlySaving), 0) by Currency

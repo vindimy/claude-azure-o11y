@@ -74,9 +74,12 @@ hygiene queryable.
 
 ## Routing is downstream
 
-Paging, email, and Teams are built on the tables, outside this repo: Azure Monitor log search alert rules
-and action groups, workbooks, or Datadog. Filter on `Owner`, `AssignmentGroup`, `CarId`, or
-`ManagementGroupId` to route. Useful queries:
+The function sends nothing. Paging, email, and Teams are built on the tables by
+`terraform/module-o11y-insights` ([insights](insights.md), [ADR-0002](../adr/0002-insights-module-in-this-repo.md)):
+workbooks, log search alert rules routed by `AssignmentGroup`, action groups, and Teams Logic Apps. Its
+queries are checked against `schema/findings-tables.json` by `tests/test_insights.py`, so a schema change
+that breaks one fails in the same PR. Datadog remains a backlog item. For ad-hoc routing or reports,
+filter on `Owner`, `AssignmentGroup`, `CarId`, or `ManagementGroupId`. Useful queries:
 
 ```kusto
 // Ops: hot now, and for how long (one row per resource per Ops run)
@@ -125,6 +128,7 @@ resources; read `no_ops_data` on its own.
 - Add columns only at the end of a table, and never rename or retype one. The table and the DCR stream
   must match, and existing queries depend on the names.
 - Edit `schema/findings-tables.json` and the builder in `src/notify/findings.py` together.
-  `tests/test_findings.py` fails if the row keys or types drift from the schema.
+  `tests/test_findings.py` fails if the row keys or types drift from the schema, and
+  `tests/test_insights.py` fails if a workbook or alert query names a column the schema lacks.
 - Redeploy (either path) to update the table and DCR. Rows ingested before the change keep nulls in the
   new columns.

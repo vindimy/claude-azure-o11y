@@ -24,9 +24,13 @@ lint:terraform:
   image: hashicorp/terraform:latest
   script:
     - terraform fmt -check -recursive terraform
-    - cd $TF_ROOT
-    - terraform init -backend=false
-    - terraform validate
+    - terraform -chdir=$TF_ROOT init -backend=false
+    - terraform -chdir=$TF_ROOT validate
+    # Downstream dashboards, alerts, and Teams delivery (docs/agents/insights.md); mock providers, no Azure.
+    - terraform -chdir=terraform/examples/insights init -backend=false
+    - terraform -chdir=terraform/examples/insights validate
+    - terraform -chdir=terraform/module-o11y-insights init -backend=false
+    - terraform -chdir=terraform/module-o11y-insights test
 
 build:
   stage: build

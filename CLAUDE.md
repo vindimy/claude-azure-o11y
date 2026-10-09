@@ -7,7 +7,8 @@ group, it reads built-in Azure Monitor metrics and writes one row per finding to
 - **FinOps findings** for cold resources, with a downsizing recommendation and estimated saving →
   `O11yFinOpsFindings_CL`, on a daily FinOps run
 
-Alerting and routing are built on those tables downstream; the function sends nothing itself. Supported
+Alerting and routing are built on those tables downstream, in `terraform/module-o11y-insights`
+(workbooks, log search alerts, Teams delivery); the function sends nothing itself. Supported
 types (`src/resource_types/`): VMs (platform metrics only; guest metrics come from DCRs elsewhere), Azure
 SQL Database, SQL Elastic Pool, SQL Managed Instance, PostgreSQL Flexible Server, Cosmos DB, Event Hubs,
 VNET subnets, App Service Plans, AKS clusters, Azure Cache for Redis, Service Bus, Application Gateway,
@@ -46,6 +47,7 @@ and Storage accounts. Owner: Dmitriy (Cloud Engineering).
 - [Architecture](docs/agents/architecture.md): pipeline and run-sequence diagrams, batch-metrics limits, resource types, scope, deployment styles compared, why not Advisor
 - [Thresholds](docs/agents/thresholds.md): threshold config, tag overrides, exclusion, RG ignore list
 - [Findings](docs/agents/findings.md): the two LAW tables, schema rules, ownership tags, downstream routing
+- [Insights](docs/agents/insights.md): Ops/FinOps workbooks, log search alerts, Teams delivery (`module-o11y-insights`), and the query-vs-schema checks
 - [Recommendations](docs/agents/recommendations.md): `recommend/` rules, contract, and pricing
 - [Identity](docs/agents/identity.md): UAMI, the permission workflow, self-check, secrets
 - [Deployment](docs/agents/deployment.md): image build/push (CI and manual), parameter contract, `deploy.sh` vs Terraform vs RHEL VM (Ansible), CI

@@ -1,0 +1,452 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## O11y Ops findings\nResources at or above a **hot** threshold, from `O11yOpsFindings_CL`. Every Ops run writes one row per hot (resource, metric), so a pair present in the latest run is hot now, and consecutive runs show how long it has been hot. Thresholds come from the config or `o11y-threshold-<metric>-hot` tags. Alerts and Teams cards are routed by `AssignmentGroup`."
+      },
+      "name": "text - header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "parameters": [
+          {
+            "id": "cb1949c6-31a3-5320-9551-a153ed98fa1a",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time range",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "b117e60b-fd07-542f-a15f-90b2f2fa7def",
+            "version": "KqlParameterItem/1.0",
+            "name": "OpsCadenceMinutes",
+            "label": "Ops run every (min)",
+            "type": 1,
+            "isRequired": true,
+            "value": "__OPS_CADENCE_MINUTES__",
+            "description": "Minutes between Ops runs (ops_schedule_cron); used to find the latest run and streaks"
+          },
+          {
+            "id": "1d024fb5-f61d-5e69-a70c-b8d6c09d7ebd",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscription",
+            "label": "Subscription",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = SubscriptionId\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "8f89ca40-aae5-5523-b726-b8ae7c8c0ea7",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceType",
+            "label": "Resource type",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = ResourceType\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "15b915b8-bf24-57fb-9911-febef73183d8",
+            "version": "KqlParameterItem/1.0",
+            "name": "AssignmentGroup",
+            "label": "Assignment group",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n| summarize by Value = iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup)\n| order by Value asc",
+            "crossComponentResources": [
+              "__LAW_RESOURCE_ID__"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let t = O11yOpsFindings_CL\n    | where TimeGenerated > ago({OpsCadenceMinutes} * 1m + 10m)\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n    | summarize Value = dcount(strcat(ResourceId, \"|\", MetricKey)) by Title = tostring(split(ResourceType, \"/\")[-1]);\nt\n| union (t | summarize Value = sum(Value) | extend Title = \"all types\")\n| order by Value desc",
+        "size": 0,
+        "title": "Hot now (resource, metric) pairs",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "tiles",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Title",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumSignificantDigits": 4,
+                "maximumFractionDigits": 0
+              }
+            }
+          },
+          "showBorder": false
+        }
+      },
+      "name": "query - hot now tiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let cadence = {OpsCadenceMinutes} * 1m;\nlet hot = O11yOpsFindings_CL\n    | where TimeGenerated > ago(7d)\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup});\nlet current = hot\n    | summarize arg_max(TimeGenerated, *) by ResourceId, MetricKey\n    | where TimeGenerated > ago(cadence + 10m);\nlet since = hot\n    | join kind=inner (current | project ResourceId, MetricKey) on ResourceId, MetricKey\n    | summarize by ResourceId, MetricKey, TimeGenerated\n    | sort by ResourceId asc, MetricKey asc, TimeGenerated desc\n    | extend Key = strcat(ResourceId, \"|\", MetricKey)\n    | extend Break = iff(Key == prev(Key) and prev(TimeGenerated) - TimeGenerated > 1.5 * cadence, 1, 0)\n    | extend Streak = row_cumsum(Break, Key != prev(Key))\n    | where Streak == 0\n    | summarize HotSince = min(TimeGenerated) by ResourceId, MetricKey;\ncurrent\n| join kind=leftouter since on ResourceId, MetricKey\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), Metric = MetricName, ObservedValue = round(ObservedValue, 2), Threshold, Unit,\n    ThresholdSource, HotSince, HotFor = now() - HotSince, Owner, AssignmentGroup, CarId\n| order by HotFor desc",
+        "size": 0,
+        "title": "Hot now, with how long each pair has been hot (a run where the pair was not hot ends a streak)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContext": {
+          "durationMs": 604800000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - hot now"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n| summarize HotPairs = dcount(strcat(ResourceId, \"|\", MetricKey))\n    by bin(TimeGenerated, {OpsCadenceMinutes} * 1m), Type = tostring(split(ResourceType, \"/\")[-1])",
+        "size": 0,
+        "title": "Hot pairs per Ops run, by resource type",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "timechart",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        }
+      },
+      "name": "query - hot trend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n| summarize Runs = dcount(RunId), MaxObserved = max(ObservedValue), LastSeen = max(TimeGenerated),\n    arg_max(TimeGenerated, ResourceType, MetricName, Threshold, Unit, Owner, AssignmentGroup)\n    by ResourceId, MetricKey\n| extend HoursHot = round(Runs * {OpsCadenceMinutes} / 60.0, 1)\n| top 25 by Runs desc\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), Metric = MetricName, HoursHot, Runs, MaxObserved = round(MaxObserved, 2),\n    Threshold, Unit, LastSeen, Owner, AssignmentGroup",
+        "size": 0,
+        "title": "Top offenders: longest hot in the time range",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            },
+            {
+              "columnMatch": "HoursHot",
+              "formatter": 4,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - top offenders"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n| summarize HotPairs = dcount(strcat(ResourceId, \"|\", MetricKey)), Resources = dcount(ResourceId)\n    by Team = iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup)\n| order by HotPairs desc",
+        "size": 0,
+        "title": "Hot pairs by assignment group",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "barchart",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        }
+      },
+      "name": "query - by team"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "O11yOpsFindings_CL\n| where TimeGenerated {TimeRange}\n    | where \"*\" in ({Subscription}) or SubscriptionId in ({Subscription})\n    | where \"*\" in ({ResourceType}) or ResourceType in ({ResourceType})\n    | where \"*\" in ({AssignmentGroup}) or iff(isempty(AssignmentGroup), \"(none)\", AssignmentGroup) in ({AssignmentGroup})\n| where array_length(MissingTags) > 0\n| summarize Runs = dcount(RunId), arg_max(TimeGenerated, ResourceType, MissingTags, Owner, AssignmentGroup, CarId) by ResourceId\n| project ResourceId, Type = tostring(split(ResourceType, \"/\")[-1]), MissingTags = strcat_array(MissingTags, \", \"), Owner, AssignmentGroup, CarId,\n    LastSeen = TimeGenerated, Runs\n| order by Runs desc",
+        "size": 0,
+        "title": "Routing gaps: hot resources with missing or unmapped ownership tags (alerts fall to the catch-all route)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "__LAW_RESOURCE_ID__"
+        ],
+        "visualization": "table",
+        "timeContextFromParameter": "TimeRange",
+        "timeContext": {
+          "durationMs": 86400000
+        },
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "showIcon": true
+              }
+            }
+          ],
+          "filter": true,
+          "rowLimit": 1000
+        }
+      },
+      "name": "query - routing gaps"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "title": "Pipeline health (App Insights)",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "traces\n| where timestamp {TimeRange}\n| where message has \"run complete\"\n| extend j = iff(message startswith \"{\", parse_json(message), customDimensions)\n| where message == \"run complete\" or tostring(j.msg) == \"run complete\"\n| project timestamp, Mode = tostring(j.mode), RunId = tostring(j.run_id), Inventory = toint(j.inventory_total),\n    Evaluated = toint(j.evaluated), Findings = toint(j.findings), RowsWritten = toint(j.rows_written),\n    WriteFailures = toint(j.write_failures), TypeFailures = toint(j.type_failures), ChunkFailures = toint(j.chunk_failures)\n| order by timestamp desc",
+              "size": 0,
+              "title": "Runs (run complete log)",
+              "timeContextFromParameter": "TimeRange",
+              "timeContext": {
+                "durationMs": 86400000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "crossComponentResources": [
+                "__APP_INSIGHTS_ID__"
+              ],
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "WriteFailures|TypeFailures|ChunkFailures",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "0",
+                          "representation": "success",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "4",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "name": "query - runs"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "traces\n| where timestamp {TimeRange}\n| where message has \"run complete\"\n| extend j = iff(message startswith \"{\", parse_json(message), customDimensions)\n| where message == \"run complete\" or tostring(j.msg) == \"run complete\"\n| summarize Findings = max(toint(j.findings)) by bin(timestamp, 15m), Mode = tostring(j.mode)",
+              "size": 0,
+              "title": "Findings per run",
+              "timeContextFromParameter": "TimeRange",
+              "timeContext": {
+                "durationMs": 86400000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "crossComponentResources": [
+                "__APP_INSIGHTS_ID__"
+              ],
+              "visualization": "timechart"
+            },
+            "name": "query - findings per run"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "traces\n| where timestamp {TimeRange}\n| where message has \"chunk failed\" or message has \"type failed\" or message has \"write failed\"\n    or message contains \"(need: \"\n| extend j = iff(message startswith \"{\", parse_json(message), customDimensions)\n| extend Msg = iff(message startswith \"{\", tostring(j.msg), message)\n| project timestamp, Msg, Detail = substring(message, 0, 1000)\n| order by timestamp desc",
+              "size": 0,
+              "title": "Pipeline errors",
+              "timeContextFromParameter": "TimeRange",
+              "timeContext": {
+                "durationMs": 86400000
+              },
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "crossComponentResources": [
+                "__APP_INSIGHTS_ID__"
+              ],
+              "visualization": "table"
+            },
+            "name": "query - errors"
+          }
+        ]
+      },
+      "name": "group - pipeline health"
+    }
+  ],
+  "fallbackResourceIds": [
+    "__LAW_RESOURCE_ID__"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

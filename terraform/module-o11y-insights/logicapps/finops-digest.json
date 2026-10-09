@@ -1,0 +1,157 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "teamsWebhookSecretUri": {
+      "type": "String",
+      "metadata": {"description": "Key Vault secret URI (no version) holding the Teams Workflows webhook URL"}
+    },
+    "uamiResourceId": {
+      "type": "String",
+      "metadata": {"description": "User-assigned identity: Log Analytics Reader on the workspace, Key Vault Secrets User on the vault"}
+    },
+    "workspaceId": {
+      "type": "String",
+      "metadata": {"description": "Log Analytics workspace (customer) id, a GUID"}
+    },
+    "summaryQuery": {"type": "String"},
+    "topQuery": {"type": "String"},
+    "title": {"type": "String"},
+    "workbookUrl": {"type": "String"}
+  },
+  "triggers": {
+    "Recurrence": {
+      "type": "Recurrence",
+      "recurrence": {
+        "frequency": "Week",
+        "interval": 1,
+        "schedule": {"weekDays": ["Monday"], "hours": [14], "minutes": [0]},
+        "timeZone": "UTC"
+      }
+    }
+  },
+  "actions": {
+    "Get_webhook_url": {
+      "type": "Http",
+      "runAfter": {},
+      "inputs": {
+        "method": "GET",
+        "uri": "@{parameters('teamsWebhookSecretUri')}?api-version=7.4",
+        "authentication": {
+          "type": "ManagedServiceIdentity",
+          "identity": "@parameters('uamiResourceId')",
+          "audience": "https://vault.azure.net"
+        }
+      },
+      "runtimeConfiguration": {"secureData": {"properties": ["outputs"]}}
+    },
+    "Summary_query": {
+      "type": "Http",
+      "runAfter": {},
+      "inputs": {
+        "method": "POST",
+        "uri": "https://api.loganalytics.io/v1/workspaces/@{parameters('workspaceId')}/query",
+        "headers": {"Content-Type": "application/json"},
+        "body": {"query": "@parameters('summaryQuery')", "timespan": "P31D"},
+        "authentication": {
+          "type": "ManagedServiceIdentity",
+          "identity": "@parameters('uamiResourceId')",
+          "audience": "https://api.loganalytics.io"
+        }
+      }
+    },
+    "Top_query": {
+      "type": "Http",
+      "runAfter": {},
+      "inputs": {
+        "method": "POST",
+        "uri": "https://api.loganalytics.io/v1/workspaces/@{parameters('workspaceId')}/query",
+        "headers": {"Content-Type": "application/json"},
+        "body": {"query": "@parameters('topQuery')", "timespan": "P2D"},
+        "authentication": {
+          "type": "ManagedServiceIdentity",
+          "identity": "@parameters('uamiResourceId')",
+          "audience": "https://api.loganalytics.io"
+        }
+      }
+    },
+    "Summary_facts": {
+      "type": "Select",
+      "runAfter": {"Summary_query": ["Succeeded"]},
+      "inputs": {
+        "from": "@coalesce(body('Summary_query')?['tables']?[0]?['rows'], json('[]'))",
+        "select": {"title": "@{item()[0]}", "value": "@{item()[1]}"}
+      }
+    },
+    "Top_facts": {
+      "type": "Select",
+      "runAfter": {"Top_query": ["Succeeded"]},
+      "inputs": {
+        "from": "@coalesce(body('Top_query')?['tables']?[0]?['rows'], json('[]'))",
+        "select": {"title": "@{item()[0]}", "value": "@{item()[1]}"}
+      }
+    },
+    "Card": {
+      "type": "Compose",
+      "runAfter": {
+        "Summary_facts": ["Succeeded"],
+        "Top_facts": ["Succeeded"]
+      },
+      "inputs": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "msteams": {"width": "Full"},
+        "body": [
+          {
+            "type": "Container",
+            "style": "accent",
+            "bleed": true,
+            "items": [
+              {"type": "TextBlock", "size": "Large", "weight": "Bolder", "wrap": true, "text": "@{parameters('title')}"},
+              {
+                "type": "TextBlock",
+                "isSubtle": true,
+                "wrap": true,
+                "text": "@{formatDateTime(utcNow(), 'yyyy-MM-dd')} · latest FinOps run per resource · estimates use retail prices"
+              }
+            ]
+          },
+          {"type": "FactSet", "facts": "@body('Summary_facts')"},
+          {"type": "TextBlock", "weight": "Bolder", "wrap": true, "spacing": "Medium", "text": "Top recommendations"},
+          {
+            "type": "FactSet",
+            "facts": "@if(empty(body('Top_facts')), array(json('{\"title\": \"-\", \"value\": \"No downsizing candidates\"}')), body('Top_facts'))"
+          }
+        ],
+        "actions": [
+          {"type": "Action.OpenUrl", "title": "Open FinOps workbook", "url": "@{parameters('workbookUrl')}"}
+        ]
+      }
+    },
+    "Post_to_Teams": {
+      "type": "Http",
+      "runAfter": {
+        "Get_webhook_url": ["Succeeded"],
+        "Card": ["Succeeded"]
+      },
+      "inputs": {
+        "method": "POST",
+        "uri": "@body('Get_webhook_url')?['value']",
+        "headers": {"Content-Type": "application/json"},
+        "body": {
+          "type": "message",
+          "attachments": [
+            {
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "contentUrl": null,
+              "content": "@outputs('Card')"
+            }
+          ]
+        }
+      },
+      "runtimeConfiguration": {"secureData": {"properties": ["inputs"]}}
+    }
+  },
+  "outputs": {}
+}

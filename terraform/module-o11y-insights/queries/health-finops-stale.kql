@@ -1,0 +1,7 @@
+// Pipeline health, workspace scope. Inputs (let statements prepended by Terraform): max_age: timespan
+// Liveness without App Insights: every FinOps run writes a row per cold resource, so an estate of any
+// size has rows daily. Returns one row when the newest row is older than max_age (or there is none).
+O11yFinOpsFindings_CL
+| summarize LastRow = max(TimeGenerated)
+| where isnull(LastRow) or LastRow < ago(max_age)
+| project HoursSinceLastRow = iff(isnull(LastRow), 48.0, round(datetime_diff("minute", now(), LastRow) / 60.0, 1))

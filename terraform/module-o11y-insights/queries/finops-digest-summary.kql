@@ -1,0 +1,27 @@
+// FinOps digest summary (Logic App, one per route). Inputs (let statements prepended by Terraform):
+//   route_groups: dynamic, route_catch_all: bool, claimed_groups: dynamic, new_since: timespan
+// Returns (Title, Value) rows, already formatted, in display order; the workflow maps them to card facts.
+let routed = O11yFinOpsFindings_CL
+    | where TimeGenerated > ago(30d)
+    | where AssignmentGroup in~ (route_groups) or (route_catch_all and AssignmentGroup !in~ (claimed_groups));
+let first_seen = routed
+    | summarize FirstSeen = min(TimeGenerated) by ResourceId;
+routed
+| where TimeGenerated > ago(2d)
+| summarize arg_max(TimeGenerated, EstimatedMonthlySaving, Currency, MissingTags) by ResourceId
+| join kind=leftouter first_seen on ResourceId
+| summarize
+    Resources = count(),
+    NewResources = countif(FirstSeen > ago(new_since)),
+    Unpriced = countif(isnull(EstimatedMonthlySaving)),
+    Saving = sum(EstimatedMonthlySaving),
+    Currency = take_any(Currency),
+    MissingOwnership = countif(array_length(MissingTags) > 0)
+| extend Money = strcat(iff(isempty(Currency), "", strcat(Currency, " ")), tostring(round(coalesce(Saving, 0.0), 0)))
+| project Facts = pack_array(
+    pack("Title", "Estimated monthly saving", "Value", strcat(Money, " (retail pay-as-you-go)")),
+    pack("Title", "Resources with a recommendation", "Value", strcat(Resources, " (", NewResources, " new)")),
+    pack("Title", "Unpriced recommendations", "Value", tostring(Unpriced)),
+    pack("Title", "Missing ownership tags", "Value", tostring(MissingOwnership)))
+| mv-expand Facts
+| project Title = tostring(Facts.Title), Value = tostring(Facts.Value)

@@ -1,0 +1,182 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "teamsWebhookSecretUri": {
+      "type": "String",
+      "metadata": {"description": "Key Vault secret URI (no version) holding the Teams Workflows webhook URL"}
+    },
+    "uamiResourceId": {
+      "type": "String",
+      "metadata": {"description": "User-assigned identity used to read the secret"}
+    }
+  },
+  "triggers": {
+    "manual": {
+      "type": "Request",
+      "kind": "Http",
+      "inputs": {
+        "method": "POST",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "schemaId": {"type": "string"},
+            "data": {"type": "object"}
+          }
+        }
+      }
+    }
+  },
+  "actions": {
+    "Get_webhook_url": {
+      "type": "Http",
+      "runAfter": {},
+      "inputs": {
+        "method": "GET",
+        "uri": "@{parameters('teamsWebhookSecretUri')}?api-version=7.4",
+        "authentication": {
+          "type": "ManagedServiceIdentity",
+          "identity": "@parameters('uamiResourceId')",
+          "audience": "https://vault.azure.net"
+        }
+      },
+      "runtimeConfiguration": {"secureData": {"properties": ["outputs"]}}
+    },
+    "Dimensions": {
+      "type": "Select",
+      "runAfter": {},
+      "inputs": {
+        "from": "@coalesce(triggerBody()?['data']?['alertContext']?['condition']?['allOf']?[0]?['dimensions'], json('[]'))",
+        "select": {
+          "title": "@{item()?['name']}",
+          "value": "@{item()?['value']}"
+        }
+      }
+    },
+    "Resource_id_dimension": {
+      "type": "Query",
+      "runAfter": {},
+      "inputs": {
+        "from": "@coalesce(triggerBody()?['data']?['alertContext']?['condition']?['allOf']?[0]?['dimensions'], json('[]'))",
+        "where": "@equals(item()?['name'], 'ResourceId')"
+      }
+    },
+    "Base_facts": {
+      "type": "Compose",
+      "runAfter": {},
+      "inputs": [
+        {"title": "Severity", "value": "@{triggerBody()?['data']?['essentials']?['severity']}"},
+        {"title": "State", "value": "@{triggerBody()?['data']?['essentials']?['monitorCondition']}"},
+        {
+          "title": "Time (UTC)",
+          "value": "@{if(equals(triggerBody()?['data']?['essentials']?['monitorCondition'], 'Resolved'), triggerBody()?['data']?['essentials']?['resolvedDateTime'], triggerBody()?['data']?['essentials']?['firedDateTime'])}"
+        },
+        {"title": "Value", "value": "@{triggerBody()?['data']?['alertContext']?['condition']?['allOf']?[0]?['metricValue']}"}
+      ]
+    },
+    "Action_results": {
+      "type": "Compose",
+      "runAfter": {},
+      "inputs": {
+        "type": "Action.OpenUrl",
+        "title": "View results",
+        "url": "@{coalesce(triggerBody()?['data']?['alertContext']?['condition']?['allOf']?[0]?['linkToFilteredSearchResultsUI'], triggerBody()?['data']?['alertContext']?['condition']?['allOf']?[0]?['linkToSearchResultsUI'], '')}"
+      }
+    },
+    "Action_resource": {
+      "type": "Compose",
+      "runAfter": {"Resource_id_dimension": ["Succeeded"]},
+      "inputs": {
+        "type": "Action.OpenUrl",
+        "title": "Open resource",
+        "url": "https://portal.azure.com/#resource@{first(body('Resource_id_dimension'))?['value']}"
+      }
+    },
+    "Action_workbook": {
+      "type": "Compose",
+      "runAfter": {},
+      "inputs": {
+        "type": "Action.OpenUrl",
+        "title": "Open workbook",
+        "url": "@{triggerBody()?['data']?['customProperties']?['WorkbookUrl']}"
+      }
+    },
+    "Action_runbook": {
+      "type": "Compose",
+      "runAfter": {},
+      "inputs": {
+        "type": "Action.OpenUrl",
+        "title": "Runbook",
+        "url": "@{triggerBody()?['data']?['customProperties']?['RunbookUrl']}"
+      }
+    },
+    "Card": {
+      "type": "Compose",
+      "runAfter": {
+        "Dimensions": ["Succeeded"],
+        "Base_facts": ["Succeeded"],
+        "Action_results": ["Succeeded"],
+        "Action_resource": ["Succeeded"],
+        "Action_workbook": ["Succeeded"],
+        "Action_runbook": ["Succeeded"]
+      },
+      "inputs": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "msteams": {"width": "Full"},
+        "body": [
+          {
+            "type": "Container",
+            "style": "@{if(equals(triggerBody()?['data']?['essentials']?['monitorCondition'], 'Resolved'), 'good', if(contains(createArray('Sev0', 'Sev1'), triggerBody()?['data']?['essentials']?['severity']), 'attention', if(equals(triggerBody()?['data']?['essentials']?['severity'], 'Sev2'), 'warning', 'accent')))}",
+            "bleed": true,
+            "items": [
+              {
+                "type": "TextBlock",
+                "size": "Large",
+                "weight": "Bolder",
+                "wrap": true,
+                "text": "@{if(equals(triggerBody()?['data']?['essentials']?['monitorCondition'], 'Resolved'), 'Resolved', 'Fired')}: @{triggerBody()?['data']?['essentials']?['alertRule']}"
+              },
+              {
+                "type": "TextBlock",
+                "isSubtle": true,
+                "wrap": true,
+                "text": "@{coalesce(triggerBody()?['data']?['essentials']?['description'], '')}"
+              }
+            ]
+          },
+          {
+            "type": "FactSet",
+            "facts": "@union(outputs('Base_facts'), body('Dimensions'))"
+          }
+        ],
+        "actions": "@union(if(empty(outputs('Action_results')?['url']), json('[]'), array(outputs('Action_results'))), if(empty(body('Resource_id_dimension')), json('[]'), array(outputs('Action_resource'))), if(empty(outputs('Action_workbook')?['url']), json('[]'), array(outputs('Action_workbook'))), if(empty(outputs('Action_runbook')?['url']), json('[]'), array(outputs('Action_runbook'))))"
+      }
+    },
+    "Post_to_Teams": {
+      "type": "Http",
+      "runAfter": {
+        "Get_webhook_url": ["Succeeded"],
+        "Card": ["Succeeded"]
+      },
+      "inputs": {
+        "method": "POST",
+        "uri": "@body('Get_webhook_url')?['value']",
+        "headers": {"Content-Type": "application/json"},
+        "body": {
+          "type": "message",
+          "attachments": [
+            {
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "contentUrl": null,
+              "content": "@outputs('Card')"
+            }
+          ]
+        }
+      },
+      "runtimeConfiguration": {"secureData": {"properties": ["inputs"]}}
+    }
+  },
+  "outputs": {}
+}
