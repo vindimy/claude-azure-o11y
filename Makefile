@@ -1,5 +1,5 @@
 PY ?= .venv/bin/python
-.PHONY: test lint identity-doc image vm-install vm-package
+.PHONY: test lint identity-doc image vm-install vm-package insights-package
 test:
 	$(PY) -m pytest
 lint:
@@ -15,3 +15,6 @@ vm-install:
 # Self-contained RHEL 9 VM package: no git/GitHub/GitLab on the VM (docs/ops/azure-vm.md). e.g. make vm-package VERSION=7
 vm-package:
 	scripts/build-vm-package.sh --version $(VERSION) $(ARGS)
+# Azure half of a release: insights Terraform + install.sh (docs/ops/insights.md). e.g. make insights-package VERSION=7
+insights-package:
+	scripts/build-insights-package.sh --version $(VERSION) $(ARGS)
